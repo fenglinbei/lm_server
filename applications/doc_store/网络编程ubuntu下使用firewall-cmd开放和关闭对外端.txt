@@ -1,0 +1,40 @@
+【网络编程】ubuntu下使用firewall-cmd开放和关闭对外端口
+
+剑客无名
+
+于 2020-11-25 15:56:59 发布
+
+5288
+ 收藏 6
+分类专栏： 网络编程 ubuntu 文章标签： linux ubuntu apache nginx
+版权
+
+网络编程
+同时被 2 个专栏收录
+12 篇文章0 订阅
+订阅专栏
+
+ubuntu
+16 篇文章0 订阅
+订阅专栏
+1. linux下安装firewall-cmd
+sudo apt-get install firewalld
+1
+1.1 开放端口（比如开放8001）
+firewall-cmd --add-port=8001/tcp --permanent
+firewall-cmd --reload
+1
+2
+1.2 查看开放的端口
+firewall-cmd  --list-all
+1
+会得到如下图，其中ports开放的端口，可以看到8001已经被开放了。
+
+
+
+1.3 关闭端口
+firewall-cmd --remove-port=8001/tcp --permanent
+firewall-cmd --reload
+————————————————
+版权声明：本文为CSDN博主「剑客无名」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/qq_33764934/article/details/110133011

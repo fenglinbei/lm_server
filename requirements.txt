@@ -1,0 +1,8 @@
+loguru==0.7.2
+fastapi==0.104.1
+python-dotenv==1.0.0
+transformers==4.35.0
+sentencepiece==0.1.99
+uvicorn==0.24.0
+
+gradio==4.1.2
