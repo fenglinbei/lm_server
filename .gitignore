@@ -1,0 +1,6 @@
+*.pyc
+*.pyo
+*.eggbuild
+*. egginfo
+*.log
+checkpoints

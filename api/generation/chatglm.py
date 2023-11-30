@@ -266,10 +266,10 @@ def generate_stream_chatglm_v3_cpp(
             num_threads=0,
         )
     
-    total_len = 0
     n_past = 0
     output_ids = []
     response = ""
+    response_len = 0
     # print(input_ids)
     # print(len(input_ids), gen_config.max_length)
     while len(input_ids) < gen_config.max_length:
@@ -279,6 +279,7 @@ def generate_stream_chatglm_v3_cpp(
         input_ids.append(next_token_id)
         
         output_ids.append(next_token_id)
+        response_len = len(output_ids)
 
         response = tokenizer.decode(output_ids)
         if response and response[-1] != "�":
@@ -288,8 +289,8 @@ def generate_stream_chatglm_v3_cpp(
                 "text": response,
                 "usage": {
                     "prompt_tokens": input_echo_len,
-                    "completion_tokens": total_len - input_echo_len,
-                    "total_tokens": total_len,
+                    "completion_tokens": response_len,
+                    "total_tokens": response_len + input_echo_len,
                 },
                 "finish_reason": "function_call" if stop_found else None,
             }
@@ -305,8 +306,8 @@ def generate_stream_chatglm_v3_cpp(
         "text": response,
         "usage": {
             "prompt_tokens": input_echo_len,
-            "completion_tokens": total_len - input_echo_len,
-            "total_tokens": total_len,
+            "completion_tokens": response_len,
+            "total_tokens": response_len + input_echo_len,
         },
         "finish_reason": "stop",
     }

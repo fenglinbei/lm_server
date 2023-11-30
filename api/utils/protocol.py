@@ -59,7 +59,7 @@ class UsageInfo(BaseModel):
     prompt_tokens: int = Field(default=0, description="prompt消耗的token数")
     total_tokens: int = Field(default=0, description="总共消耗的token数")
     completion_tokens: Optional[int] = Field(default=0, description="回复消耗的token数")
-    first_tokens: Optional[Any] = None
+    # first_tokens: Optional[Any] = None
 
 
 class ChatFunction(BaseModel):

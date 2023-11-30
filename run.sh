@@ -1,2 +1,3 @@
-pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
-sleep 99999999
+python api/server.py
+# pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+# sleep 99999999

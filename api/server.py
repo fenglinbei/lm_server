@@ -11,7 +11,7 @@ from api.models import GENERATE_MDDEL
 from api.routes import chat_router, completion_router, model_router
 
 logger.remove(handler_id=None)
-logger.add(config.LOG_PATH + "server.log", format="{time} {level} {message}", filter="", level="INFO")
+logger.add(config.LOG_PATH + "server.log", format="{time} {level} {message}", filter="", level="DEBUG")
 
 app = FastAPI(title="api-for-llm V1.1")
 app.add_middleware(
