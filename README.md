@@ -1,7 +1,7 @@
 # LLM SERVER
 
 当前分支使用的模型为
-`chatglm3-6b-int8-ggml`
+`chatglm3-6b-f16-ggml`
 
 ## 🐳 环境配置
 
