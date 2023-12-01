@@ -49,7 +49,7 @@ class BaseModelAdapter:
             
         if "ggml" in model_name:
             import chatglm_cpp
-            model = chatglm_cpp.Pipeline(model_name, dtype="q8_0")
+            model = chatglm_cpp.Pipeline(model_name, dtype="f16")
             return model, tokenizer
 
         config_kwargs = self.model_kwargs

@@ -977,8 +977,8 @@ class ChatGLM2ForCausalLM : public BasicModelForCausalLM<ChatGLM2Model> {
     StateDict state_dict() const;
 
   public:
-    static constexpr size_t MEM_SIZE = 4096 * MB;      // 2k context
-    static constexpr size_t SCRATCH_SIZE = 10240 * MB; // 2k context
+    static constexpr size_t MEM_SIZE = 2048 * MB;      // 2k context
+    static constexpr size_t SCRATCH_SIZE = 7168 * MB; // 2k context
 };
 
 // ===== ChatGLM3-6B =====
