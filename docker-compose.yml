@@ -2,6 +2,7 @@ version: '3.10'
 
 services:
   llm_api_server:
+    container_name: llm_server
     build: ./docker/
     command: bash run.sh
     ulimits:
@@ -20,3 +21,8 @@ services:
             - driver: nvidia
               device_ids: ['0']
               capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "http://localhost:5005/v1/models"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
