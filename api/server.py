@@ -1,37 +1,42 @@
-import sys
-
-sys.path.insert(0, ".")
-
-from loguru import logger
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-from api.config import config
-from api.models import GENERATE_MDDEL
-from api.routes import chat_router, completion_router, model_router
-
-logger.remove(handler_id=None)
-logger.add(config.LOG_PATH + "server.log", format="{time} {level} {message}", filter="", level="DEBUG")
-
-app = FastAPI(title="api-for-llm V1.1")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from api.config import SETTINGS
+from api.models import app, EMBEDDED_MODEL, GENERATE_ENGINE
+from api.routes import model_router
 
 
-prefix = config.API_PREFIX
-app.include_router(model_router, prefix=prefix, tags=["model"])
-# if EMBEDDED_MODEL is not None:
-#     app.include_router(embedding_router, prefix=prefix, tags=["Embedding"])
-if GENERATE_MDDEL is not None:
+prefix = SETTINGS.api_prefix
+app.include_router(model_router, prefix=prefix, tags=["Model"])
+
+if EMBEDDED_MODEL is not None:
+    from api.routes.embedding import embedding_router
+
+    app.include_router(embedding_router, prefix=prefix, tags=["Embedding"])
+
+
+if GENERATE_ENGINE is not None:
+    if SETTINGS.engine == "vllm":
+        from api.vllm_routes import chat_router as chat_router
+        from api.vllm_routes import completion_router as completion_router
+
+    elif SETTINGS.engine == "llama.cpp":
+        from api.llama_cpp_routes import chat_router as chat_router
+        from api.llama_cpp_routes import completion_router as completion_router
+
+    elif SETTINGS.engine == "chatglm.cpp":
+        from api.chatglm_cpp_routes import chat_router as chat_router
+        # from api.chatglm_cpp_routes import completion_router as completion_router
+
+    elif SETTINGS.engine == "tgi":
+        from api.tgi_routes import chat_router as chat_router
+        from api.tgi_routes.completion import completion_router as completion_router
+
+    else:
+        from api.routes.chat import chat_router as chat_router
+        from api.routes.completion import completion_router as completion_router
+
     app.include_router(chat_router, prefix=prefix, tags=["Chat"])
-    app.include_router(completion_router, prefix=prefix, tags=["Completion"])
+    # app.include_router(completion_router, prefix=prefix, tags=["Completion"])
 
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host=config.HOST, port=config.PORT, log_level="debug")
+    uvicorn.run(app, host=SETTINGS.host, port=SETTINGS.port, log_level="info")

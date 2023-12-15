@@ -1,76 +1,83 @@
+import base64
+
 import numpy as np
 import tiktoken
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from openai.types.create_embedding_response import Usage
+from sentence_transformers import SentenceTransformer
 
-from api.config import config
+from api.config import SETTINGS
 from api.models import EMBEDDED_MODEL
-from api.utils.protocol import (
-    UsageInfo,
-    EmbeddingsResponse,
-    EmbeddingsRequest,
-)
+from api.utils.protocol import EmbeddingCreateParams, Embedding, CreateEmbeddingResponse
+from api.utils.request import check_api_key
 
 embedding_router = APIRouter()
 
 
-@embedding_router.post("/embeddings")
-@embedding_router.post("/engines/{model_name}/embeddings")
-async def create_embeddings(request: EmbeddingsRequest, model_name: str = None):
+def get_embedding_engine():
+    yield EMBEDDED_MODEL
+
+
+@embedding_router.post("/embeddings", dependencies=[Depends(check_api_key)])
+@embedding_router.post("/engines/{model_name}/embeddings", dependencies=[Depends(check_api_key)])
+async def create_embeddings(
+    request: EmbeddingCreateParams,
+    model_name: str = None,
+    engine: SentenceTransformer = Depends(get_embedding_engine),
+):
     """Creates embeddings for the text"""
     if request.model is None:
         request.model = model_name
 
-    inputs = request.input
-    if isinstance(inputs, str):
-        inputs = [inputs]
-    elif isinstance(inputs, list):
-        if isinstance(inputs[0], int):
+    request.input = request.input
+    if isinstance(request.input, str):
+        request.input = [request.input]
+    elif isinstance(request.input, list):
+        if isinstance(request.input[0], int):
             decoding = tiktoken.model.encoding_for_model(request.model)
-            inputs = [decoding.decode(inputs)]
-        elif isinstance(inputs[0], list):
+            request.input = [decoding.decode(request.input)]
+        elif isinstance(request.input[0], list):
             decoding = tiktoken.model.encoding_for_model(request.model)
-            inputs = [decoding.decode(text) for text in inputs]
+            request.input = [decoding.decode(text) for text in request.input]
 
     # https://huggingface.co/BAAI/bge-large-zh
-    if EMBEDDED_MODEL is not None:
-        if "bge" in config.EMBEDDING_NAME.lower():
-            instruction = ""
-            if "zh" in config.EMBEDDING_NAME.lower():
-                instruction = "为这个句子生成表示以用于检索相关文章："
-            elif "en" in config.EMBEDDING_NAME.lower():
-                instruction = "Represent this sentence for searching relevant passages: "
-            inputs = [instruction + q for q in inputs]
+    # if engine is not None and "bge" in SETTINGS.embedding_name.lower():
+    #     instruction = ""
+    #     if "zh" in SETTINGS.embedding_name.lower():
+    #         instruction = "为这个句子生成表示以用于检索相关文章："
+    #     elif "en" in SETTINGS.embedding_name.lower():
+    #         instruction = "Represent this sentence for searching relevant passages: "
+    #     request.input = [instruction + q for q in request.input]
 
-    data, token_num = [], 0
+    data, total_tokens = [], 0
     batches = [
-        inputs[i: min(i + 1024, len(inputs))]
-        for i in range(0, len(inputs), 1024)
+        request.input[i: i + 1024] for i in range(0, len(request.input), 1024)
     ]
     for num_batch, batch in enumerate(batches):
-        token_num = sum([len(i) for i in batch])
-        vecs = EMBEDDED_MODEL.encode(batch, normalize_embeddings=True)
+        token_num = sum(len(i) for i in batch)
+        vecs = engine.encode(batch, normalize_embeddings=True)
 
         bs, dim = vecs.shape
-        if config.EMBEDDING_SIZE is not None and config.EMBEDDING_SIZE > dim:
-            zeros = np.zeros((bs, config.EMBEDDING_SIZE - dim))
-            vecs = np.c_[vecs, zeros].tolist()
+        if SETTINGS.embedding_size > dim:
+            zeros = np.zeros((bs, SETTINGS.embedding_size - dim))
+            vecs = np.c_[vecs, zeros]
 
-        data += [
-            {
-                "object": "embedding",
-                "embedding": emb,
-                "index": num_batch * 1024 + i,
-            }
-            for i, emb in enumerate(vecs)
-        ]
-        token_num += token_num
+        if request.encoding_format == "base64":
+            vecs = [base64.b64encode(v.tobytes()).decode("utf-8") for v in vecs]
+        else:
+            vecs = vecs.tolist()
 
-    return EmbeddingsResponse(
+        data.extend(
+            Embedding(
+                index=num_batch * 1024 + i, object="embedding", embedding=embed
+            )
+            for i, embed in enumerate(vecs)
+        )
+        total_tokens += token_num
+
+    return CreateEmbeddingResponse(
         data=data,
         model=request.model,
-        usage=UsageInfo(
-            prompt_tokens=token_num,
-            total_tokens=token_num,
-            completion_tokens=None,
-        ),
-    ).dict(exclude_none=True)
+        object="list",
+        usage=Usage(prompt_tokens=total_tokens, total_tokens=total_tokens),
+    )
