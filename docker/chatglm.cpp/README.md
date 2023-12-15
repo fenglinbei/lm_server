@@ -105,11 +105,70 @@ python3 chatglm_cpp/convert.py -i THUDM/chatglm2-6b -t q4_0 -o chatglm2-ggml.bin
 <details open>
 <summary>ChatGLM3-6B</summary>
 
+ChatGLM3-6B further supports function call and code interpreter in addition to chat mode.
+
+Chat mode:
 ```sh
 python3 chatglm_cpp/convert.py -i THUDM/chatglm3-6b -t q4_0 -o chatglm3-ggml.bin
 ./build/bin/main -m chatglm3-ggml.bin -p 你好 --top_p 0.8 --temp 0.8
 # 你好👋！我是人工智能助手 ChatGLM3-6B，很高兴见到你，欢迎问我任何问题。
 ```
+
+Setting system prompt:
+```sh
+./build/bin/main -m chatglm3-ggml.bin -p 你好 -s "You are ChatGLM3, a large language model trained by Zhipu.AI. Follow the user's instructions carefully. Respond using markdown."
+# 你好👋！我是 ChatGLM3，有什么问题可以帮您解答吗？
+```
+
+Function call:
+~~~
+$ ./build/bin/main -m chatglm3-ggml.bin --top_p 0.8 --temp 0.8 --sp examples/system/function_call.txt -i
+System   > Answer the following questions as best as you can. You have access to the following tools: ...
+Prompt   > 生成一个随机数
+ChatGLM3 > random_number_generator
+```python
+tool_call(seed=42, range=(0, 100))
+```
+Tool Call   > Please manually call function `random_number_generator` with args `tool_call(seed=42, range=(0, 100))` and provide the results below.
+Observation > 23
+ChatGLM3 > 根据您的要求，我使用随机数生成器API生成了一个随机数。根据API返回结果，生成的随机数为23。
+~~~
+
+Code interpreter:
+~~~
+$ ./build/bin/main -m chatglm3-ggml.bin --top_p 0.8 --temp 0.8 --sp examples/system/code_interpreter.txt -i
+System   > 你是一位智能AI助手，你叫ChatGLM，你连接着一台电脑，但请注意不能联网。在使用Python解决任务时，你可以运行代码并得到结果，如果运行结果有错误，你需要尽可能对代码进行改进。你可以处理用户上传到电脑上的文件，文件默认存储路径是/mnt/data/。
+Prompt   > 列出100以内的所有质数
+ChatGLM3 > 好的，我会为您列出100以内的所有质数。
+```python
+def is_prime(n):
+   """Check if a number is prime."""
+   if n <= 1:
+       return False
+   if n <= 3:
+       return True
+   if n % 2 == 0 or n % 3 == 0:
+       return False
+   i = 5
+   while i * i <= n:
+       if n % i == 0 or n % (i + 2) == 0:
+           return False
+       i += 6
+   return True
+
+primes_upto_100 = [i for i in range(2, 101) if is_prime(i)]
+primes_upto_100
+```
+
+Code Interpreter > Please manually run the code and provide the results below.
+Observation      > [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97]
+ChatGLM3 > 100以内的所有质数为：
+
+$$
+2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 
+$$
+~~~
+
 </details>
 
 <details>
@@ -251,20 +310,20 @@ pip install .
 
 Pre-built wheels for CPU backend on Linux / MacOS / Windows are published on [release](https://github.com/li-plus/chatglm.cpp/releases). For CUDA / Metal backends, please compile from source code or source distribution.
 
-**Using pre-converted ggml models**
+**Using Pre-converted GGML Models**
 
 Here is a simple demo that uses `chatglm_cpp.Pipeline` to load the GGML model and chat with it. First enter the examples folder (`cd examples`) and launch a Python interactive shell:
 ```python
 >>> import chatglm_cpp
 >>> 
 >>> pipeline = chatglm_cpp.Pipeline("../chatglm-ggml.bin")
->>> pipeline.chat(["你好"])
-'你好👋！我是人工智能助手 ChatGLM-6B，很高兴见到你，欢迎问我任何问题。'
+>>> pipeline.chat([chatglm_cpp.ChatMessage(role="user", content="你好")])
+ChatMessage(role="assistant", content="你好👋！我是人工智能助手 ChatGLM-6B，很高兴见到你，欢迎问我任何问题。", tool_calls=[])
 ```
 
 To chat in stream, run the below Python example:
 ```sh
-python3 cli_chat.py -m ../chatglm-ggml.bin -i
+python3 cli_demo.py -m ../chatglm-ggml.bin -i
 ```
 
 Launch a web demo to chat in your browser:
@@ -280,7 +339,7 @@ For other models:
 <summary>ChatGLM2-6B</summary>
 
 ```sh
-python3 cli_chat.py -m ../chatglm2-ggml.bin -p 你好 --temp 0.8 --top_p 0.8  # CLI demo
+python3 cli_demo.py -m ../chatglm2-ggml.bin -p 你好 --temp 0.8 --top_p 0.8  # CLI demo
 python3 web_demo.py -m ../chatglm2-ggml.bin --temp 0.8 --top_p 0.8  # web demo
 ```
 </details>
@@ -288,10 +347,40 @@ python3 web_demo.py -m ../chatglm2-ggml.bin --temp 0.8 --top_p 0.8  # web demo
 <details open>
 <summary>ChatGLM3-6B</summary>
 
+**CLI Demo**
+
+Chat mode:
 ```sh
-python3 cli_chat.py -m ../chatglm3-ggml.bin -p 你好 --temp 0.8 --top_p 0.8  # CLI demo
-python3 web_demo.py -m ../chatglm3-ggml.bin --temp 0.8 --top_p 0.8  # web demo
+python3 cli_demo.py -m ../chatglm3-ggml.bin -p 你好 --temp 0.8 --top_p 0.8
 ```
+
+Function call:
+```sh
+python3 cli_demo.py -m ../chatglm3-ggml.bin --temp 0.8 --top_p 0.8 --sp system/function_call.txt -i
+```
+
+Code interpreter:
+```sh
+python3 cli_demo.py -m ../chatglm3-ggml.bin --temp 0.8 --top_p 0.8 --sp system/code_interpreter.txt -i
+```
+
+**Web Demo**
+
+Install Python dependencies and the IPython kernel for code interpreter.
+```sh
+pip install streamlit jupyter_client ipython ipykernel
+ipython kernel install --name chatglm3-demo --user
+```
+
+Launch the web demo:
+```sh
+streamlit run chatglm3_demo.py
+```
+
+| Function Call               | Code Interpreter               |
+|-----------------------------|--------------------------------|
+| ![](docs/function_call.png) | ![](docs/code_interpreter.png) |
+
 </details>
 
 <details>
@@ -299,7 +388,7 @@ python3 web_demo.py -m ../chatglm3-ggml.bin --temp 0.8 --top_p 0.8  # web demo
 
 ```sh
 # CLI demo
-python3 cli_chat.py -m ../codegeex2-ggml.bin --temp 0 --mode generate -p "\
+python3 cli_demo.py -m ../codegeex2-ggml.bin --temp 0 --mode generate -p "\
 # language: Python
 # write a bubble sort function
 "
@@ -312,7 +401,7 @@ python3 web_demo.py -m ../codegeex2-ggml.bin --temp 0 --max_length 512 --mode ge
 <summary>Baichuan-13B-Chat</summary>
 
 ```sh
-python3 cli_chat.py -m ../baichuan-13b-chat-ggml.bin -p 你好 --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.1 # CLI demo
+python3 cli_demo.py -m ../baichuan-13b-chat-ggml.bin -p 你好 --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.1 # CLI demo
 python3 web_demo.py -m ../baichuan-13b-chat-ggml.bin --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.1   # web demo
 ```
 </details>
@@ -321,7 +410,7 @@ python3 web_demo.py -m ../baichuan-13b-chat-ggml.bin --top_k 5 --top_p 0.85 --te
 <summary>Baichuan2-7B-Chat</summary>
 
 ```sh
-python3 cli_chat.py -m ../baichuan2-7b-chat-ggml.bin -p 你好 --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.05 # CLI demo
+python3 cli_demo.py -m ../baichuan2-7b-chat-ggml.bin -p 你好 --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.05 # CLI demo
 python3 web_demo.py -m ../baichuan2-7b-chat-ggml.bin --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.05   # web demo
 ```
 </details>
@@ -330,7 +419,7 @@ python3 web_demo.py -m ../baichuan2-7b-chat-ggml.bin --top_k 5 --top_p 0.85 --te
 <summary>Baichuan2-13B-Chat</summary>
 
 ```sh
-python3 cli_chat.py -m ../baichuan2-13b-chat-ggml.bin -p 你好 --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.05 # CLI demo
+python3 cli_demo.py -m ../baichuan2-13b-chat-ggml.bin -p 你好 --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.05 # CLI demo
 python3 web_demo.py -m ../baichuan2-13b-chat-ggml.bin --top_k 5 --top_p 0.85 --temp 0.3 --repeat_penalty 1.05   # web demo
 ```
 </details>
@@ -339,7 +428,7 @@ python3 web_demo.py -m ../baichuan2-13b-chat-ggml.bin --top_k 5 --top_p 0.85 --t
 <summary>InternLM-Chat-7B</summary>
 
 ```sh
-python3 cli_chat.py -m ../internlm-chat-7b-ggml.bin -p 你好 --top_p 0.8 --temp 0.8  # CLI demo
+python3 cli_demo.py -m ../internlm-chat-7b-ggml.bin -p 你好 --top_p 0.8 --temp 0.8  # CLI demo
 python3 web_demo.py -m ../internlm-chat-7b-ggml.bin --top_p 0.8 --temp 0.8  # web demo
 ```
 </details>
@@ -348,12 +437,12 @@ python3 web_demo.py -m ../internlm-chat-7b-ggml.bin --top_p 0.8 --temp 0.8  # we
 <summary>InternLM-Chat-20B</summary>
 
 ```sh
-python3 cli_chat.py -m ../internlm-chat-20b-ggml.bin -p 你好 --top_p 0.8 --temp 0.8 # CLI demo
+python3 cli_demo.py -m ../internlm-chat-20b-ggml.bin -p 你好 --top_p 0.8 --temp 0.8 # CLI demo
 python3 web_demo.py -m ../internlm-chat-20b-ggml.bin --top_p 0.8 --temp 0.8 # web demo
 ```
 </details>
 
-**Load and optimize Hugging Face LLMs in one line of code**
+**Converting Hugging Face LLMs at Runtime**
 
 Sometimes it might be inconvenient to convert and save the intermediate GGML models beforehand. Here is an option to directly load from the original Hugging Face model, quantize it into GGML models in a minute, and start serving. All you need is to replace the GGML model path with the Hugging Face model name or path.
 ```python
@@ -363,13 +452,13 @@ Sometimes it might be inconvenient to convert and save the intermediate GGML mod
 Loading checkpoint shards: 100%|██████████████████████████████████| 8/8 [00:10<00:00,  1.27s/it]
 Processing model states: 100%|████████████████████████████████| 339/339 [00:23<00:00, 14.73it/s]
 ...
->>> pipeline.chat(["你好"])
-'你好👋！我是人工智能助手 ChatGLM-6B，很高兴见到你，欢迎问我任何问题。'
+>>> pipeline.chat([chatglm_cpp.ChatMessage(role="user", content="你好")])
+ChatMessage(role="assistant", content="你好👋！我是人工智能助手 ChatGLM-6B，很高兴见到你，欢迎问我任何问题。", tool_calls=[])
 ```
 
 Likewise, replace the GGML model path with Hugging Face model in any example script, and it just works. For example:
 ```sh
-python3 cli_chat.py -m THUDM/chatglm-6b -p 你好 -i
+python3 cli_demo.py -m THUDM/chatglm-6b -p 你好 -i
 ```
 
 ## API Server
@@ -443,7 +532,7 @@ docker build . --network=host -t chatglm.cpp
 # cpp demo
 docker run -it --rm -v $PWD:/opt chatglm.cpp ./build/bin/main -m /opt/chatglm-ggml.bin -p "你好"
 # python demo
-docker run -it --rm -v $PWD:/opt chatglm.cpp python3 examples/cli_chat.py -m /opt/chatglm-ggml.bin -p "你好"
+docker run -it --rm -v $PWD:/opt chatglm.cpp python3 examples/cli_demo.py -m /opt/chatglm-ggml.bin -p "你好"
 # langchain api server
 docker run -it --rm -v $PWD:/opt -p 8000:8000 -e MODEL=/opt/chatglm-ggml.bin chatglm.cpp \
     uvicorn chatglm_cpp.langchain_api:app --host 0.0.0.0 --port 8000
