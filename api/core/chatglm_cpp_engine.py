@@ -205,15 +205,13 @@ class ChatglmCppEngine:
                     object="chat.completion.chunk",
                 )
 
-            if output["finish_reason"] is None:
-                delta = ChoiceDelta(content=output["text"])
-            else:
-                delta = ChoiceDelta()
+            finish_reason = output["finish_reason"]
+            delta = ChoiceDelta(content=output["delta"])
 
             choice = ChunkChoice(
                 index=0,
                 delta=delta,
-                finish_reason=output["finish_reason"],
+                finish_reason=finish_reason,
             )
             yield ChatCompletionChunk(
                 id=f"chat{_id}",
