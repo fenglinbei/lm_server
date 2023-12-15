@@ -45,6 +45,10 @@ class Settings(BaseModel):
         default=get_env("ENGINE", "'chatglm.cpp'"),
         description="Choices are ['default', 'vllm', 'llama.cpp', 'chatglm.cpp'].",
     )
+    log_path: Optional[str] = Field(
+        default=get_env("LOG_PATH", "./api/log/"),
+        description="The path where server saved."
+    )
 
     # model related
     model_name: Optional[str] = Field(

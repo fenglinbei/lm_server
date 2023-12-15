@@ -2,6 +2,7 @@ import base64
 
 import numpy as np
 import tiktoken
+from loguru import logger
 from fastapi import APIRouter, Depends
 from openai.types.create_embedding_response import Usage
 from sentence_transformers import SentenceTransformer
@@ -10,6 +11,8 @@ from api.config import SETTINGS
 from api.models import EMBEDDED_MODEL
 from api.utils.protocol import EmbeddingCreateParams, Embedding, CreateEmbeddingResponse
 from api.utils.request import check_api_key
+
+from utils.compat import model_dump
 
 embedding_router = APIRouter()
 
@@ -28,6 +31,8 @@ async def create_embeddings(
     """Creates embeddings for the text"""
     if request.model is None:
         request.model = model_name
+    
+    logger.info(f"Get embedding request: {str(model_dump(request))}")
 
     request.input = request.input
     if isinstance(request.input, str):
