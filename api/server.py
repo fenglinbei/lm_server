@@ -1,6 +1,6 @@
 from utils.log import init_logger
 from api.config import SETTINGS
-from api.models import app, EMBEDDED_MODEL, GENERATE_ENGINE
+from api.models import app, EMBEDDED_MODEL, GENERATE_ENGINE, RERANK_MODEL
 from api.routes import model_router
 
 logger = init_logger()
@@ -12,6 +12,11 @@ if EMBEDDED_MODEL is not None:
     from api.routes.embedding import embedding_router
 
     app.include_router(embedding_router, prefix=prefix, tags=["Embedding"])
+
+if RERANK_MODEL is not None:
+    from api.routes.rerank import rerank_router
+
+    app.include_router(rerank_router, prefix=prefix, tags=["Rerank"])
 
 
 if GENERATE_ENGINE is not None:

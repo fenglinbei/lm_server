@@ -117,6 +117,12 @@ class Settings(BaseModel):
         description="The embedding grpc port while using triton engine."
     )
 
+    # rerank related
+    reranker_name: Optional[str] = Field(
+        default=get_env("RERANKER_NAME", "checkpoints/bce-reranker-base_v1/"),
+        description="The path to the model to use for rerank."
+    )
+
     # quantize related
     quantize: Optional[int] = Field(
         default=int(get_env("QUANTIZE", 16)),

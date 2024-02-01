@@ -33,6 +33,11 @@ def create_embedding_model():
         return SentenceTransformer(SETTINGS.embedding_name, device=SETTINGS.embedding_device)
     else:
         return None
+    
+
+def create_rerank_model():
+    from api.core.rerank import RerankerModel
+    return RerankerModel(model_name_or_path=SETTINGS.reranker_name, device=SETTINGS.embedding_device)
 
 
 def create_generate_model():
@@ -176,6 +181,8 @@ app = create_app()
 
 # model for embedding
 EMBEDDED_MODEL = create_embedding_model() if (SETTINGS.embedding_name and SETTINGS.activate_inference) else None
+
+RERANK_MODEL = v=create_rerank_model() if (SETTINGS.reranker_name and SETTINGS.activate_inference) else None
 
 # model for transformers generate
 if (not SETTINGS.only_embedding) and SETTINGS.activate_inference:
