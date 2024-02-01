@@ -109,6 +109,7 @@ class LlamaCppEngine:
         )
 
     def _create_chat_completion_stream(self, prompt, **kwargs) -> Iterator:
+        from loguru import logger
         """
         Generates a stream of chat completion chunks based on the given prompt.
 
@@ -146,6 +147,7 @@ class LlamaCppEngine:
                 delta=delta,
                 finish_reason=output["choices"][0]["finish_reason"],
             )
+            logger.debug(f"response: {choice}")
             yield ChatCompletionChunk(
                 id=f"chat{_id}",
                 choices=[choice],

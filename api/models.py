@@ -20,10 +20,19 @@ def create_app() -> FastAPI:
 
 
 def create_embedding_model():
-    """ get embedding model from sentence-transformers. """
-    from sentence_transformers import SentenceTransformer
+    if SETTINGS.embedding_engine == "triton":
+        pass
+    elif SETTINGS.embedding_engine == "st":
+        """ get embedding model from sentence-transformers. """
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            logger.warning("Fail to import sentence_transformers, embedding is not available.")
+            return None
 
-    return SentenceTransformer(SETTINGS.embedding_name, device=SETTINGS.embedding_device)
+        return SentenceTransformer(SETTINGS.embedding_name, device=SETTINGS.embedding_device)
+    else:
+        return None
 
 
 def create_generate_model():
@@ -123,9 +132,10 @@ def create_llama_cpp_engine():
     engine = Llama(
         model_path=SETTINGS.model_path,
         n_ctx=SETTINGS.context_length if SETTINGS.context_length > 0 else 2048,
+        verbose=True,
         **kwargs,
     )
-
+    logger.info(engine.__dict__)
     logger.info("Using llama.cpp engine")
 
     return LlamaCppEngine(engine, SETTINGS.model_name, SETTINGS.chat_template)

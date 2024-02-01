@@ -1,10 +1,9 @@
-from loguru import logger
+from utils.log import init_logger
 from api.config import SETTINGS
 from api.models import app, EMBEDDED_MODEL, GENERATE_ENGINE
 from api.routes import model_router
 
-logger.remove(handler_id=None)
-logger.add(SETTINGS.log_path + "server.log", format="{time} {level} {message}", filter="", level="DEBUG")
+logger = init_logger()
 
 prefix = SETTINGS.api_prefix
 app.include_router(model_router, prefix=prefix, tags=["Model"])
