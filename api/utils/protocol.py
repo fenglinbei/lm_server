@@ -444,3 +444,30 @@ class CreateEmbeddingResponse(BaseModel):
 
     usage: Usage
     """The usage information for the request."""
+
+
+class CreateRerankerParams(BaseModel):
+    query: str
+    passages: List[str]
+    """text to rerank, encoded as a string.
+    """
+
+
+class RerankResult(BaseModel):
+    rerank_idx: List[int]
+    scores: List[float] 
+
+    object: Literal["rerank"]
+    """The object type, which is always "rerank"."""
+
+
+class CreateRerankerResponse(BaseModel):
+    data: RerankResult
+    model: str
+    """The name of the model used to generate the embedding."""
+
+    object: Literal["list"]
+    """The object type, which is always "list"."""
+
+    usage: Usage
+    """The usage information for the request."""

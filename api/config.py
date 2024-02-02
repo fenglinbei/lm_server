@@ -97,7 +97,7 @@ class Settings(BaseModel):
         description="Whether to launch embedding server only."
     )
     embedding_name: Optional[str] = Field(
-        default=get_env("EMBEDDING_NAME", "checkpoints/bge-large-zh-v1.5/"),
+        default=get_env("EMBEDDING_NAME", "checkpoints/bce-embedding-base_v1/"),
         description="The path to the model to use for generating embeddings."
     )
     embedding_size: Optional[int] = Field(
@@ -107,6 +107,20 @@ class Settings(BaseModel):
     embedding_device: Optional[str] = Field(
         default=get_env("EMBEDDING_DEVICE", "cuda"),
         description="Device to load the model."
+    )
+    embedding_engine: Optional[str] = Field(
+        default=get_env("EMBEDDING_ENGINE", "st"),
+        description="The embedding engine."
+    )
+    triton_port: Optional[int] = Field(
+        default=int(get_env("TRITON_PORT", 10001)),
+        description="The embedding grpc port while using triton engine."
+    )
+
+    # rerank related
+    reranker_name: Optional[str] = Field(
+        default=get_env("RERANKER_NAME", "checkpoints/bce-reranker-base_v1/"),
+        description="The path to the model to use for rerank."
     )
 
     # quantize related
@@ -134,7 +148,7 @@ class Settings(BaseModel):
 
     # context related
     context_length: Optional[int] = Field(
-        default=int(get_env("CONTEXT_LEN", -1)),
+        default=int(get_env("CONTEXT_LEN", 8192)),
         ge=-1,
         description="Context length for generating completions."
     )

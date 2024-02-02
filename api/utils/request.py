@@ -82,6 +82,16 @@ async def handle_request(
     request.stop_token_ids = request.stop_token_ids or []
     request.stop_token_ids = list(set(_stop_token_ids + request.stop_token_ids))
 
+    if not request.top_p:
+        request.top_p = 1.0
+    
+    if not request.temperature:
+         request.temperature = 0.9
+
+    # if not request.frequency_penalty or request.frequency_penalty == 0.0:
+    #     request.frequency_penalty = 1.03
+    #     request.presence_penalty = 1.03
+
     return request
 
 
@@ -107,16 +117,19 @@ def check_requests(request: Union[CompletionCreateParams, ChatCompletionCreatePa
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.temperature} is greater than the maximum of 2 - 'temperature'",
         )
+
     if request.top_p is not None and request.top_p < 0:
         return create_error_response(
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.top_p} is less than the minimum of 0 - 'top_p'",
         )
-    if request.top_p is not None and request.top_p > 1:
+    elif request.top_p is not None and request.top_p > 1:
         return create_error_response(
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.top_p} is greater than the maximum of 1 - 'temperature'",
         )
+
+
     if request.stop is None or isinstance(request.stop, (str, list)):
         return None
     else:

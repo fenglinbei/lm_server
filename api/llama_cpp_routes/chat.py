@@ -7,6 +7,7 @@ from loguru import logger
 from sse_starlette import EventSourceResponse
 from starlette.concurrency import run_in_threadpool
 
+from api.core.llama_cpp_engine import LlamaCppEngine
 from api.llama_cpp_routes.utils import get_llama_cpp_engine
 from api.utils.compat import model_dump
 from api.utils.protocol import Role, ChatCompletionCreateParams
@@ -23,20 +24,27 @@ chat_router = APIRouter(prefix="/chat")
 async def create_chat_completion(
     request: ChatCompletionCreateParams,
     raw_request: Request,
-    engine=Depends(get_llama_cpp_engine),
+    engine: LlamaCppEngine = Depends(get_llama_cpp_engine),
 ):
-    logger.info(f"Received chat messages: {request.messages}")
-
     if (not request.messages) or request.messages[-1]["role"] == Role.ASSISTANT:
         raise HTTPException(status_code=400, detail="Invalid request")
 
     request = await handle_request(request, engine.stop)
     request.max_tokens = request.max_tokens or 512
+    logger.debug(f"==== raw request ====\n{request.model_dump()}")
 
     prompt = engine.apply_chat_template(request.messages, request.functions, request.tools)
+    logger.debug(f"prompt: {prompt}")
+
     include = {
-        "temperature", "top_p", "stream", "stop", "model",
-        "max_tokens", "presence_penalty", "frequency_penalty",
+        "temperature",
+        "top_p",
+        "stream",
+        "stop",
+        "model",
+        "max_tokens",
+        "presence_penalty",
+        "frequency_penalty",
     }
     kwargs = model_dump(request, include=include)
     logger.debug(f"==== request ====\n{kwargs}")
@@ -52,6 +60,7 @@ async def create_chat_completion(
         # If no exception was raised from first_response, we can assume that
         # the iterator is valid, and we can use it to stream the response.
         def iterator() -> Iterator:
+            logger.info(f"response: {first_response}")
             yield first_response
             yield from iterator_or_completion
 

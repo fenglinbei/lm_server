@@ -3,6 +3,7 @@ version: '3.10'
 services:
   llm_api_server:
     container_name: llm_server
+    # image: llm-api:llama-cpp
     build: ./docker/
     command: bash run.sh
     ulimits:
@@ -10,7 +11,7 @@ services:
       memlock: -1
     volumes:
       - $PWD:/workspace
-      - /root/model/:/workspace/checkpoints/
+      - /WiqunBot/model/:/workspace/checkpoints/
     env_file:
       - .env
     network_mode: "host"

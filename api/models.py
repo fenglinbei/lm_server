@@ -20,10 +20,24 @@ def create_app() -> FastAPI:
 
 
 def create_embedding_model():
-    """ get embedding model from sentence-transformers. """
-    from sentence_transformers import SentenceTransformer
+    if SETTINGS.embedding_engine == "triton":
+        pass
+    elif SETTINGS.embedding_engine == "st":
+        """ get embedding model from sentence-transformers. """
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            logger.warning("Fail to import sentence_transformers, embedding is not available.")
+            return None
 
-    return SentenceTransformer(SETTINGS.embedding_name, device=SETTINGS.embedding_device)
+        return SentenceTransformer(SETTINGS.embedding_name, device=SETTINGS.embedding_device)
+    else:
+        return None
+    
+
+def create_rerank_model():
+    from api.core.rerank import RerankerModel
+    return RerankerModel(model_name_or_path=SETTINGS.reranker_name, device=SETTINGS.embedding_device)
 
 
 def create_generate_model():
@@ -123,9 +137,10 @@ def create_llama_cpp_engine():
     engine = Llama(
         model_path=SETTINGS.model_path,
         n_ctx=SETTINGS.context_length if SETTINGS.context_length > 0 else 2048,
+        verbose=True,
         **kwargs,
     )
-
+    logger.info(engine.__dict__)
     logger.info("Using llama.cpp engine")
 
     return LlamaCppEngine(engine, SETTINGS.model_name, SETTINGS.chat_template)
@@ -166,6 +181,8 @@ app = create_app()
 
 # model for embedding
 EMBEDDED_MODEL = create_embedding_model() if (SETTINGS.embedding_name and SETTINGS.activate_inference) else None
+
+RERANK_MODEL = v=create_rerank_model() if (SETTINGS.reranker_name and SETTINGS.activate_inference) else None
 
 # model for transformers generate
 if (not SETTINGS.only_embedding) and SETTINGS.activate_inference:
