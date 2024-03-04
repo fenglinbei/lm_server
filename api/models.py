@@ -140,10 +140,11 @@ def create_llama_cpp_engine():
         verbose=True,
         **kwargs,
     )
-    logger.info(engine.__dict__)
     logger.info("Using llama.cpp engine")
+    engine = LlamaCppEngine(engine, SETTINGS.model_name, SETTINGS.chat_template)
+    logger.debug(engine.__dict__)
 
-    return LlamaCppEngine(engine, SETTINGS.model_name, SETTINGS.chat_template)
+    return engine
 
 def create_chatglm_cpp_engine():
     """ get llama.cpp generate engine for chat or completion. """
@@ -180,9 +181,10 @@ def create_tgi_engine():
 app = create_app()
 
 # model for embedding
-EMBEDDED_MODEL = create_embedding_model() if (SETTINGS.embedding_name and SETTINGS.activate_inference) else None
-
-RERANK_MODEL = v=create_rerank_model() if (SETTINGS.reranker_name and SETTINGS.activate_inference) else None
+# EMBEDDED_MODEL = create_embedding_model() if (SETTINGS.embedding_name and SETTINGS.activate_inference) else None
+# RERANK_MODEL = create_rerank_model() if (SETTINGS.reranker_name and SETTINGS.activate_inference) else None
+EMBEDDED_MODEL = None
+RERANK_MODEL = None
 
 # model for transformers generate
 if (not SETTINGS.only_embedding) and SETTINGS.activate_inference:
