@@ -181,10 +181,17 @@ def create_tgi_engine():
 app = create_app()
 
 # model for embedding
-# EMBEDDED_MODEL = create_embedding_model() if (SETTINGS.embedding_name and SETTINGS.activate_inference) else None
-# RERANK_MODEL = create_rerank_model() if (SETTINGS.reranker_name and SETTINGS.activate_inference) else None
-EMBEDDED_MODEL = None
-RERANK_MODEL = None
+if SETTINGS.embedding_name and SETTINGS.activate_inference:
+    logger.info(f"Loading embedding model {SETTINGS.embedding_name}")
+    EMBEDDED_MODEL = create_embedding_model()
+else:
+    EMBEDDED_MODEL = None
+
+if SETTINGS.reranker_name and SETTINGS.activate_inference:
+    logger.info(f"Loading rerank model {SETTINGS.reranker_name}")
+    RERANK_MODEL = create_rerank_model()
+else:
+    RERANK_MODEL = None
 
 # model for transformers generate
 if (not SETTINGS.only_embedding) and SETTINGS.activate_inference:
