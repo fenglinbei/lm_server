@@ -1,9 +1,10 @@
 from utils.log import init_logger
+logger = init_logger()
+
 from api.config import SETTINGS
 from api.models import app, EMBEDDED_MODEL, GENERATE_ENGINE, RERANK_MODEL
 from api.routes import model_router
 
-logger = init_logger()
 
 prefix = SETTINGS.api_prefix
 app.include_router(model_router, prefix=prefix, tags=["Model"])
