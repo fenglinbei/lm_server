@@ -137,7 +137,8 @@ def create_llama_cpp_engine():
     engine = Llama(
         model_path=SETTINGS.model_path,
         n_ctx=SETTINGS.context_length if SETTINGS.context_length > 0 else 2048,
-        verbose=True,
+        verbose=False,
+        flash_attn=True,
         **kwargs,
     )
     logger.info("Using llama.cpp engine")
