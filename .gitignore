@@ -6,3 +6,4 @@
 checkpoints
 api-for-open-llm
 .env
+models/
