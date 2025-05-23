@@ -34,7 +34,7 @@ async def create_chat_completion(
     logger.debug(f"==== raw request ====\n{request.model_dump()}")
 
     prompt = engine.apply_chat_template(request.messages, request.functions, request.tools)
-    logger.debug(f"prompt: {prompt}")
+    logger.debug(f"prompt: {repr(prompt)}")
 
     include = {
         "temperature",

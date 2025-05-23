@@ -18,7 +18,8 @@ RUN python3 -m pip install --upgrade pip pytest cmake scikit-build setuptools \
   loguru python-dotenv==1.0.0 jinja2 sentence_transformers tiktoken==0.5.1
 
 # Install llama-cpp-python (build with cuda)
-RUN CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama-cpp-python==0.2.38
+# RUN CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama-cpp-python==0.2.38
+RUN CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama-cpp-python
 
 WORKDIR /workspace/
 ENV PYTHONPATH /workspace/

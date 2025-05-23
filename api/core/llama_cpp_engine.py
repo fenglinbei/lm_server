@@ -147,7 +147,6 @@ class LlamaCppEngine:
                 delta=delta,
                 finish_reason=output["choices"][0]["finish_reason"],
             )
-            logger.debug(f"response: {choice}")
             yield ChatCompletionChunk(
                 id=f"chat{_id}",
                 choices=[choice],

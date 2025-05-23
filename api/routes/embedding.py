@@ -32,7 +32,8 @@ async def create_embeddings(
     if request.model is None:
         request.model = model_name
     
-    logger.info(f"Get embedding request: {str(model_dump(request))}")
+    # logger.info(f"Get embedding request: {str(model_dump(request))}")
+    logger.info(f"Get embedding request.")
 
     request.input = request.input
     if isinstance(request.input, str):
