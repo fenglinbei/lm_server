@@ -3,7 +3,7 @@ from typing import Optional, Dict, List, Union, Literal, Any
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
-    ChatCompletionToolChoiceOptionParam,
+    ChatCompletionToolChoiceOptionParam
 )
 from openai.types.chat.completion_create_params import FunctionCall, ResponseFormat
 from openai.types.create_embedding_response import Usage
@@ -471,3 +471,7 @@ class CreateRerankerResponse(BaseModel):
 
     usage: Usage
     """The usage information for the request."""
+
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: str
