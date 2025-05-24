@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from loguru import logger
 
-from api.apapter import get_prompt_adapter
+from api.adapter import get_prompt_adapter
 from api.generation.baichuan import check_is_baichuan
 from api.generation.chatglm import generate_stream_chatglm, check_is_chatglm, generate_stream_chatglm_v3, generate_stream_chatglm_v3_cpp
 from api.generation.qwen import check_is_qwen
