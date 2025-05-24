@@ -513,6 +513,9 @@ class DefaultEngine(ABC):
             message=message,
             finish_reason=finish_reason,
         )
+
+        logger.debug(last_output)
+
         usage = model_parse(CompletionUsage, last_output["usage"])
         return ChatCompletion(
             id=f"chat{last_output['id']}",
