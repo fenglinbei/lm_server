@@ -523,7 +523,7 @@ class DefaultEngine(ABC):
             id=f"chat{chat_id}",
             choices=[choice],
             created=created,
-            model=last_output["model"],
+            model=self.model_name,
             object="chat.completion",
             usage=usage,
         )
