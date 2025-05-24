@@ -39,12 +39,9 @@ from api.generation import (
     check_is_baichuan,
     generate_stream_chatglm,
     check_is_chatglm,
-    generate_stream_chatglm_v3,
     build_qwen_chat_input,
     check_is_qwen,
-    generate_stream,
-    build_xverse_chat_input,
-    check_is_xverse,
+    generate_stream
 )
 from api.generation.utils import get_context_length
 from api.utils.compat import model_parse
@@ -104,10 +101,8 @@ class DefaultEngine(ABC):
         4. Sets the context length if it is not already set.
         """
         self.generate_stream_func = generate_stream
-        if "chatglm3" in self.model_name:
-            self.generate_stream_func = generate_stream_chatglm_v3
-            self.use_streamer_v2 = False
-        elif check_is_chatglm(self.model):
+
+        if check_is_chatglm(self.model):
             self.generate_stream_func = generate_stream_chatglm
         elif check_is_qwen(self.model):
             self.context_len = 8192 if self.context_len is None else self.context_len
@@ -126,8 +121,6 @@ class DefaultEngine(ABC):
             logger.info("Using Baichuan Model for Chat!")
         elif check_is_qwen(self.model):
             logger.info("Using Qwen Model for Chat!")
-        elif check_is_xverse(self.model):
-            logger.info("Using Xverse Model for Chat!")
         else:
             self.construct_prompt = True
 
@@ -254,10 +247,6 @@ class DefaultEngine(ABC):
         elif check_is_qwen(self.model):
             inputs = build_qwen_chat_input(
                 self.tokenizer, messages, self.context_len, max_new_tokens, functions, tools,
-            )
-        elif check_is_xverse(self.model):
-            inputs = build_xverse_chat_input(
-                self.tokenizer, messages, self.context_len, max_new_tokens
             )
         else:
             raise NotImplementedError
