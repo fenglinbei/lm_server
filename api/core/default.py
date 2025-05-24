@@ -10,6 +10,8 @@ from typing import (
     Any,
 )
 
+import uuid
+import time
 import torch
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -469,6 +471,8 @@ class DefaultEngine(ABC):
             ChatCompletion: The generated chat completion.
         """
         last_output = None
+        chat_id = uuid.uuid4()
+        created = int(time.time())
         for output in self._generate(params):
             last_output = output
 
@@ -514,13 +518,11 @@ class DefaultEngine(ABC):
             finish_reason=finish_reason,
         )
 
-        logger.debug(last_output)
-
         usage = model_parse(CompletionUsage, last_output["usage"])
         return ChatCompletion(
-            id=f"chat{last_output['id']}",
+            id=f"chat{chat_id}",
             choices=[choice],
-            created=last_output["created"],
+            created=created,
             model=last_output["model"],
             object="chat.completion",
             usage=usage,
