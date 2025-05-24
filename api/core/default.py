@@ -274,7 +274,12 @@ class DefaultEngine(ABC):
         params |= dict(inputs=inputs, prompt=prompt)
 
         try:
-            for output in self.generate_stream_func(self.model, self.tokenizer, params):
+            for output in self.generate_stream_func(
+                model=self.model, 
+                tokenizer=self.tokenizer, 
+                params=params, 
+                device=self.device,
+                context_len=self.context_len):
                 output["error_code"] = 0
                 yield output
 
