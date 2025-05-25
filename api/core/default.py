@@ -147,6 +147,7 @@ class DefaultEngine(ABC):
         prompt_or_messages: Union[List[ChatCompletionMessageParam], str],
         infilling: Optional[bool] = False,
         suffix_first: Optional[bool] = False,
+        enable_thinking: Optional[bool] = False,
         **kwargs,
     ) -> Tuple[Union[List[int], Dict[str, Any]], Union[List[ChatCompletionMessageParam], str]]:
         """
@@ -164,6 +165,7 @@ class DefaultEngine(ABC):
         # for completion
         logger.debug(f"prompt_or_messages: {prompt_or_messages}")
         logger.debug(f"tokenizer: {self.tokenizer}")
+        logger.debug(f"model: {self.model}")
         if isinstance(prompt_or_messages, str):
             if infilling:
                 inputs = self.tokenizer(
@@ -171,7 +173,9 @@ class DefaultEngine(ABC):
                 ).input_ids
             elif check_is_qwen(self.model):
                 inputs = self.tokenizer(
-                    prompt_or_messages, allowed_special="all", disallowed_special=()
+                    prompt_or_messages, 
+                    allowed_special="all", 
+                    disallowed_special=()
                 ).input_ids
             elif check_is_chatglm(self.model):
                 inputs = self.tokenizer([prompt_or_messages], return_tensors="pt")
@@ -276,6 +280,7 @@ class DefaultEngine(ABC):
             max_new_tokens=params.get("max_tokens", 256),
             functions=params.get("functions"),
             tools=params.get("tools"),
+            enable_thinking=params.get("enable_thinking")
         )
         params |= dict(inputs=inputs, prompt=prompt)
 

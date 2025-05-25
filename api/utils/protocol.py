@@ -90,6 +90,9 @@ class ChatCompletionCreateParams(BaseModel):
     n: Optional[int] = 1
     """How many chat completion choices to generate for each input message."""
 
+    enable_thinking: Optional[bool] = False
+    """Enable thinking mode."""
+
     presence_penalty: Optional[float] = 0.
     """Number between -2.0 and 2.0.
 
