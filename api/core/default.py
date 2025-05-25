@@ -233,10 +233,22 @@ class DefaultEngine(ABC):
                 logger.debug(f"==== Messages with tools ====\n{messages}")
 
         if self.construct_prompt:
-            prompt = self.prompt_adapter.apply_chat_template(messages)
+            if not check_is_qwen3:
+                prompt = self.prompt_adapter.apply_chat_template(messages)
+                
+            else:
+                prompt = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    enable_thinking=enable_thinking,  # Setting enable_thinking=False disables thinking mode
+                    )
+                
             logger.debug(f"prompt: {prompt}")
             if check_is_qwen(self.model):
                 inputs = self.tokenizer(prompt, allowed_special="all", disallowed_special=()).input_ids
+            if check_is_qwen3(self.model):
+                inputs = self.tokenizer([prompt], return_tensors="pt")
             elif check_is_chatglm(self.model):
                 inputs = self.tokenizer([prompt], return_tensors="pt")
             else:
