@@ -162,6 +162,8 @@ class DefaultEngine(ABC):
             Tuple containing the converted inputs and the prompt or messages.
         """
         # for completion
+        logger.debug(f"prompt_or_messages: {prompt_or_messages}")
+        logger.debug(f"tokenizer: {self.tokenizer}")
         if isinstance(prompt_or_messages, str):
             if infilling:
                 inputs = self.tokenizer(
@@ -182,6 +184,8 @@ class DefaultEngine(ABC):
 
         else:
             inputs, prompt_or_messages = self.apply_chat_template(prompt_or_messages, **kwargs)
+
+        logger.debug(f"inputs: {inputs}")
         return inputs, prompt_or_messages
 
     def apply_chat_template(
