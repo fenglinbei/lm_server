@@ -180,13 +180,11 @@ class DefaultEngine(ABC):
                     disallowed_special=()
                 ).input_ids
             elif check_is_qwen3(self.model):
-                text = self.tokenizer.apply_chat_template(
+                inputs = self.tokenizer.apply_chat_template(
                     prompt_or_messages,
-                    tokenize=False,
                     add_generation_prompt=True,
-                    enable_thinking=False,  # Setting enable_thinking=False disables thinking mode
-)
-                inputs = self.tokenizer([text]).input_ids
+                    enable_thinking=enable_thinking,  # Setting enable_thinking=False disables thinking mode
+                ).input_ids
             elif check_is_chatglm(self.model):
                 inputs = self.tokenizer([prompt_or_messages], return_tensors="pt")
             else:
@@ -208,6 +206,7 @@ class DefaultEngine(ABC):
         max_new_tokens: Optional[int] = 256,
         functions: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
+        enable_thinking: Optional[bool] = False,
         **kwargs,
     ) -> Tuple[Union[List[int], Dict[str, Any]], Optional[str]]:
         """
@@ -223,6 +222,9 @@ class DefaultEngine(ABC):
         Returns:
             Tuple[Union[List[int], Dict[str, Any]], Union[str, None]]: Tuple containing the generated inputs and prompt.
         """
+        logger.debug(f"function_call_available: {self.prompt_adapter.function_call_available}")
+        logger.debug(f"prompt_adapter: {self.prompt_adapter}")
+        logger.debug(f"self.construct_prompt: {self.construct_prompt}")
         if self.prompt_adapter.function_call_available:
             messages = self.prompt_adapter.postprocess_messages(
                 messages, functions, tools=tools,
