@@ -43,6 +43,7 @@ from api.generation import (
     check_is_chatglm,
     build_qwen_chat_input,
     check_is_qwen,
+    check_is_qwen3,
     generate_stream
 )
 from api.generation.utils import get_context_length
@@ -178,6 +179,14 @@ class DefaultEngine(ABC):
                     allowed_special="all", 
                     disallowed_special=()
                 ).input_ids
+            elif check_is_qwen3(self.model):
+                text = self.tokenizer.apply_chat_template(
+                    prompt_or_messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    enable_thinking=False,  # Setting enable_thinking=False disables thinking mode
+)
+                inputs = self.tokenizer([text]).input_ids
             elif check_is_chatglm(self.model):
                 inputs = self.tokenizer([prompt_or_messages], return_tensors="pt")
             else:
@@ -190,7 +199,7 @@ class DefaultEngine(ABC):
         else:
             inputs, prompt_or_messages = self.apply_chat_template(prompt_or_messages, **kwargs)
 
-        logger.debug(f"inputs: {inputs}")
+        logger.debug(f"inputs: {inputs} {type(inputs)}")
         return inputs, prompt_or_messages
 
     def apply_chat_template(
