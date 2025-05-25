@@ -234,6 +234,7 @@ class DefaultEngine(ABC):
 
         if self.construct_prompt:
             prompt = self.prompt_adapter.apply_chat_template(messages)
+            logger.debug(f"prompt: {prompt}")
             if check_is_qwen(self.model):
                 inputs = self.tokenizer(prompt, allowed_special="all", disallowed_special=()).input_ids
             elif check_is_chatglm(self.model):
