@@ -165,7 +165,8 @@ class DefaultEngine(ABC):
         # for completion
         logger.debug(f"prompt_or_messages: {prompt_or_messages}")
         logger.debug(f"tokenizer: {self.tokenizer}")
-        logger.debug(f"model: {self.model}")
+        block = getattr(self.model, "_no_split_modules", [])
+        logger.debug(f"model: {block}")
         if isinstance(prompt_or_messages, str):
             if infilling:
                 inputs = self.tokenizer(
