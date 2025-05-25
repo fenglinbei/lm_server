@@ -195,7 +195,7 @@ class DefaultEngine(ABC):
                 inputs = inputs[-max_src_len:]
 
         else:
-            inputs, prompt_or_messages = self.apply_chat_template(prompt_or_messages, **kwargs)
+            inputs, prompt_or_messages = self.apply_chat_template(prompt_or_messages, enable_thinking=enable_thinking, **kwargs)
 
         logger.debug(f"inputs: {inputs} {type(inputs)}")
         return inputs, prompt_or_messages
