@@ -84,6 +84,9 @@ async def handle_request(
 
     if not request.top_p:
         request.top_p = 1.0
+
+    if not request.top_k:
+        request.top_k = 20
     
     if not request.temperature:
          request.temperature = 0.9

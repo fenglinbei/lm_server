@@ -573,7 +573,7 @@ class DefaultEngine(ABC):
             self._create_completion_stream(params)
             if params.get("stream", False)
             else self._create_completion(params)
-        )
+        ) # type: ignore
 
     def create_chat_completion(
         self,
@@ -586,7 +586,7 @@ class DefaultEngine(ABC):
             self._create_chat_completion_stream(params)
             if params.get("stream", False)
             else self._create_chat_completion(params)
-        )
+        ) # type: ignore
 
     @property
     def stop(self):

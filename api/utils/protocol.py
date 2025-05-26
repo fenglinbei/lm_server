@@ -158,6 +158,14 @@ class ChatCompletionCreateParams(BaseModel):
     We generally recommend altering this or `temperature` but not both.
     """
 
+    top_k: Optional[float] = 20
+    """
+    生成过程中采样候选集的大小。
+    例如,取值为50时,仅将单次生成中得分最高的50个Token组成随机采样的候选集。
+    取值越大,生成的随机性越高；取值越小,生成的确定性越高。取值为None或当top_k大于100时,表示不启用top_k策略,此时仅有top_p策略生效。
+
+    取值需要大于或等于0。"""
+
     user: Optional[str] = None
     """
     A unique identifier representing your end-user, which can help OpenAI to monitor
@@ -339,6 +347,14 @@ class CompletionCreateParams(BaseModel):
 
     We generally recommend altering this or `temperature` but not both.
     """
+
+    top_k: Optional[float] = 20
+    """
+    生成过程中采样候选集的大小。
+    例如,取值为50时,仅将单次生成中得分最高的50个Token组成随机采样的候选集。
+    取值越大,生成的随机性越高；取值越小,生成的确定性越高。取值为None或当top_k大于100时,表示不启用top_k策略,此时仅有top_p策略生效。
+
+    取值需要大于或等于0。"""
 
     user: Optional[str] = None
     """
