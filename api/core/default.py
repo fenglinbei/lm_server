@@ -10,6 +10,8 @@ from typing import (
     Any,
 )
 
+import uuid
+import time
 import torch
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -39,12 +41,10 @@ from api.generation import (
     check_is_baichuan,
     generate_stream_chatglm,
     check_is_chatglm,
-    generate_stream_chatglm_v3,
     build_qwen_chat_input,
     check_is_qwen,
-    generate_stream,
-    build_xverse_chat_input,
-    check_is_xverse,
+    check_is_qwen3,
+    generate_stream
 )
 from api.generation.utils import get_context_length
 from api.utils.compat import model_parse
@@ -104,10 +104,8 @@ class DefaultEngine(ABC):
         4. Sets the context length if it is not already set.
         """
         self.generate_stream_func = generate_stream
-        if "chatglm3" in self.model_name:
-            self.generate_stream_func = generate_stream_chatglm_v3
-            self.use_streamer_v2 = False
-        elif check_is_chatglm(self.model):
+
+        if check_is_chatglm(self.model):
             self.generate_stream_func = generate_stream_chatglm
         elif check_is_qwen(self.model):
             self.context_len = 8192 if self.context_len is None else self.context_len
@@ -126,8 +124,6 @@ class DefaultEngine(ABC):
             logger.info("Using Baichuan Model for Chat!")
         elif check_is_qwen(self.model):
             logger.info("Using Qwen Model for Chat!")
-        elif check_is_xverse(self.model):
-            logger.info("Using Xverse Model for Chat!")
         else:
             self.construct_prompt = True
 
@@ -152,6 +148,7 @@ class DefaultEngine(ABC):
         prompt_or_messages: Union[List[ChatCompletionMessageParam], str],
         infilling: Optional[bool] = False,
         suffix_first: Optional[bool] = False,
+        enable_thinking: Optional[bool] = False,
         **kwargs,
     ) -> Tuple[Union[List[int], Dict[str, Any]], Union[List[ChatCompletionMessageParam], str]]:
         """
@@ -167,6 +164,10 @@ class DefaultEngine(ABC):
             Tuple containing the converted inputs and the prompt or messages.
         """
         # for completion
+        logger.debug(f"prompt_or_messages: {prompt_or_messages}")
+        logger.debug(f"tokenizer: {self.tokenizer}")
+        block = getattr(self.model, "_no_split_modules", [])
+        logger.debug(f"model: {block}")
         if isinstance(prompt_or_messages, str):
             if infilling:
                 inputs = self.tokenizer(
@@ -174,7 +175,15 @@ class DefaultEngine(ABC):
                 ).input_ids
             elif check_is_qwen(self.model):
                 inputs = self.tokenizer(
-                    prompt_or_messages, allowed_special="all", disallowed_special=()
+                    prompt_or_messages, 
+                    allowed_special="all", 
+                    disallowed_special=()
+                ).input_ids
+            elif check_is_qwen3(self.model):
+                inputs = self.tokenizer.apply_chat_template(
+                    prompt_or_messages,
+                    add_generation_prompt=True,
+                    enable_thinking=enable_thinking,  # Setting enable_thinking=False disables thinking mode
                 ).input_ids
             elif check_is_chatglm(self.model):
                 inputs = self.tokenizer([prompt_or_messages], return_tensors="pt")
@@ -186,7 +195,9 @@ class DefaultEngine(ABC):
                 inputs = inputs[-max_src_len:]
 
         else:
-            inputs, prompt_or_messages = self.apply_chat_template(prompt_or_messages, **kwargs)
+            inputs, prompt_or_messages = self.apply_chat_template(prompt_or_messages, enable_thinking=enable_thinking, **kwargs)
+
+        logger.debug(f"inputs: {inputs} {type(inputs)}")
         return inputs, prompt_or_messages
 
     def apply_chat_template(
@@ -195,6 +206,7 @@ class DefaultEngine(ABC):
         max_new_tokens: Optional[int] = 256,
         functions: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
+        enable_thinking: Optional[bool] = False,
         **kwargs,
     ) -> Tuple[Union[List[int], Dict[str, Any]], Optional[str]]:
         """
@@ -210,6 +222,9 @@ class DefaultEngine(ABC):
         Returns:
             Tuple[Union[List[int], Dict[str, Any]], Union[str, None]]: Tuple containing the generated inputs and prompt.
         """
+        logger.debug(f"function_call_available: {self.prompt_adapter.function_call_available}")
+        logger.debug(f"prompt_adapter: {self.prompt_adapter}")
+        logger.debug(f"self.construct_prompt: {self.construct_prompt}")
         if self.prompt_adapter.function_call_available:
             messages = self.prompt_adapter.postprocess_messages(
                 messages, functions, tools=tools,
@@ -218,9 +233,22 @@ class DefaultEngine(ABC):
                 logger.debug(f"==== Messages with tools ====\n{messages}")
 
         if self.construct_prompt:
-            prompt = self.prompt_adapter.apply_chat_template(messages)
+            if not check_is_qwen3:
+                prompt = self.prompt_adapter.apply_chat_template(messages)
+                
+            else:
+                prompt = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    enable_thinking=enable_thinking,  # Setting enable_thinking=False disables thinking mode
+                    )
+                
+            logger.debug(f"prompt: {prompt}")
             if check_is_qwen(self.model):
                 inputs = self.tokenizer(prompt, allowed_special="all", disallowed_special=()).input_ids
+            if check_is_qwen3(self.model):
+                inputs = self.tokenizer([prompt], return_tensors="pt")
             elif check_is_chatglm(self.model):
                 inputs = self.tokenizer([prompt], return_tensors="pt")
             else:
@@ -255,10 +283,6 @@ class DefaultEngine(ABC):
             inputs = build_qwen_chat_input(
                 self.tokenizer, messages, self.context_len, max_new_tokens, functions, tools,
             )
-        elif check_is_xverse(self.model):
-            inputs = build_xverse_chat_input(
-                self.tokenizer, messages, self.context_len, max_new_tokens
-            )
         else:
             raise NotImplementedError
         return inputs
@@ -281,11 +305,17 @@ class DefaultEngine(ABC):
             max_new_tokens=params.get("max_tokens", 256),
             functions=params.get("functions"),
             tools=params.get("tools"),
+            enable_thinking=params.get("enable_thinking")
         )
         params |= dict(inputs=inputs, prompt=prompt)
 
         try:
-            for output in self.generate_stream_func(self.model, self.tokenizer, params):
+            for output in self.generate_stream_func(
+                model=self.model, 
+                tokenizer=self.tokenizer, 
+                params=params, 
+                device=self.device,
+                context_len=self.context_len):
                 output["error_code"] = 0
                 yield output
 
@@ -475,6 +505,8 @@ class DefaultEngine(ABC):
             ChatCompletion: The generated chat completion.
         """
         last_output = None
+        chat_id = uuid.uuid4()
+        created = int(time.time())
         for output in self._generate(params):
             last_output = output
 
@@ -519,12 +551,13 @@ class DefaultEngine(ABC):
             message=message,
             finish_reason=finish_reason,
         )
+
         usage = model_parse(CompletionUsage, last_output["usage"])
         return ChatCompletion(
-            id=f"chat{last_output['id']}",
+            id=f"chat{chat_id}",
             choices=[choice],
-            created=last_output["created"],
-            model=last_output["model"],
+            created=created,
+            model=self.model_name,
             object="chat.completion",
             usage=usage,
         )
@@ -540,7 +573,7 @@ class DefaultEngine(ABC):
             self._create_completion_stream(params)
             if params.get("stream", False)
             else self._create_completion(params)
-        )
+        ) # type: ignore
 
     def create_chat_completion(
         self,
@@ -553,7 +586,7 @@ class DefaultEngine(ABC):
             self._create_chat_completion_stream(params)
             if params.get("stream", False)
             else self._create_chat_completion(params)
-        )
+        ) # type: ignore
 
     @property
     def stop(self):

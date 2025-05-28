@@ -82,10 +82,11 @@ def create_generate_model():
 def create_vllm_engine():
     """ get vllm generate engine for chat or completion. """
     try:
-        from vllm.engine.arg_utils import AsyncEngineArgs
-        from vllm.engine.async_llm_engine import AsyncLLMEngine
+        from vllm import AsyncEngineArgs
+        from vllm import AsyncLLMEngine
         from vllm.transformers_utils.tokenizer import get_tokenizer
         from api.core.vllm_engine import VllmEngine
+
     except ImportError:
         return None
 

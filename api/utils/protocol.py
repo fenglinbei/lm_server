@@ -3,7 +3,7 @@ from typing import Optional, Dict, List, Union, Literal, Any
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
-    ChatCompletionToolChoiceOptionParam,
+    ChatCompletionToolChoiceOptionParam
 )
 from openai.types.chat.completion_create_params import FunctionCall, ResponseFormat
 from openai.types.create_embedding_response import Usage
@@ -90,6 +90,9 @@ class ChatCompletionCreateParams(BaseModel):
     n: Optional[int] = 1
     """How many chat completion choices to generate for each input message."""
 
+    enable_thinking: Optional[bool] = False
+    """Enable thinking mode."""
+
     presence_penalty: Optional[float] = 0.
     """Number between -2.0 and 2.0.
 
@@ -154,6 +157,14 @@ class ChatCompletionCreateParams(BaseModel):
 
     We generally recommend altering this or `temperature` but not both.
     """
+
+    top_k: Optional[float] = 20
+    """
+    生成过程中采样候选集的大小。
+    例如,取值为50时,仅将单次生成中得分最高的50个Token组成随机采样的候选集。
+    取值越大,生成的随机性越高；取值越小,生成的确定性越高。取值为None或当top_k大于100时,表示不启用top_k策略,此时仅有top_p策略生效。
+
+    取值需要大于或等于0。"""
 
     user: Optional[str] = None
     """
@@ -337,6 +348,14 @@ class CompletionCreateParams(BaseModel):
     We generally recommend altering this or `temperature` but not both.
     """
 
+    top_k: Optional[float] = 20
+    """
+    生成过程中采样候选集的大小。
+    例如,取值为50时,仅将单次生成中得分最高的50个Token组成随机采样的候选集。
+    取值越大,生成的随机性越高；取值越小,生成的确定性越高。取值为None或当top_k大于100时,表示不启用top_k策略,此时仅有top_p策略生效。
+
+    取值需要大于或等于0。"""
+
     user: Optional[str] = None
     """
     A unique identifier representing your end-user, which can help OpenAI to monitor
@@ -471,3 +490,7 @@ class CreateRerankerResponse(BaseModel):
 
     usage: Usage
     """The usage information for the request."""
+
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: str

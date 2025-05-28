@@ -97,7 +97,7 @@ class Settings(BaseModel):
         description="Whether to launch embedding server only."
     )
     embedding_name: Optional[str] = Field(
-        default=get_env("EMBEDDING_NAME", "checkpoints/bce-embedding-base_v1/"),
+        default=get_env("EMBEDDING_NAME", None),
         description="The path to the model to use for generating embeddings."
     )
     embedding_size: Optional[int] = Field(
@@ -119,7 +119,7 @@ class Settings(BaseModel):
 
     # rerank related
     reranker_name: Optional[str] = Field(
-        default=get_env("RERANKER_NAME", "checkpoints/bce-reranker-base_v1/"),
+        default=get_env("RERANKER_NAME", None),
         description="The path to the model to use for rerank."
     )
 

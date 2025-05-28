@@ -58,7 +58,7 @@ def create_error_response(code: int, message: str) -> JSONResponse:
 
 async def handle_request(
     request: Union[CompletionCreateParams, ChatCompletionCreateParams],
-    stop: Dict[str, Any] = None,
+    stop: Optional[Dict[str, Any]] = None,
     chat: bool = True,
 ) -> Union[Union[CompletionCreateParams, ChatCompletionCreateParams], JSONResponse]:
     error_check_ret = check_requests(request)
@@ -84,6 +84,9 @@ async def handle_request(
 
     if not request.top_p:
         request.top_p = 1.0
+
+    if not request.top_k:
+        request.top_k = 20
     
     if not request.temperature:
          request.temperature = 0.9

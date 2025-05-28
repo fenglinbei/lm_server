@@ -56,6 +56,7 @@ class VllmEngine:
         max_tokens: Optional[int] = 256,
         functions: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
+        enable_thinking: Optional[bool] = False
     ) -> Union[str, List[int]]:
         """
         Applies a chat template to the given messages and returns the processed output.
@@ -81,6 +82,14 @@ class VllmEngine:
             return self.tokenizer.build_chat_input(
                 query, history=messages[:-1], role=role
             )["input_ids"][0].tolist()
+        elif "qwen3" in self.model_name:
+            prompt: str = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                    enable_thinking=enable_thinking,  # Setting enable_thinking=False disables thinking mode
+                    )
+            return self.tokenizer(prompt).input_ids
         elif "qwen" in self.model_name:
             return build_qwen_chat_input(
                 self.tokenizer,
@@ -122,6 +131,7 @@ class VllmEngine:
                 max_tokens,
                 functions=params.get("functions"),
                 tools=params.get("tools"),
+                enable_thinking=params.get("enable_thinking")
             )
 
         if isinstance(prompt_or_messages, list):

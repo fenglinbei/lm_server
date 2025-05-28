@@ -96,6 +96,9 @@ def build_qwen_chat_input(
 def check_is_qwen(model) -> bool:
     return "QWenBlock" in getattr(model, "_no_split_modules", [])
 
+def check_is_qwen3(model) -> bool:
+    return "Qwen3DecoderLayer" in getattr(model, "_no_split_modules", [])
+
 
 def process_qwen_messages(messages: List[ChatMessage], functions: Union[dict, List[dict]] = None):
     if all(m.role != Role.USER for m in messages):
