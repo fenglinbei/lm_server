@@ -1,4 +1,8 @@
+import uuid
+import time
+import torch
 import asyncio
+import traceback
 from typing import (
     Optional,
     List,
@@ -6,17 +10,38 @@ from typing import (
     Any,
     AsyncIterator,
     Union,
+    Iterator
 )
-
+from openai.types.chat import (
+    ChatCompletionMessage,
+    ChatCompletion,
+    ChatCompletionChunk,
+)
+from openai.types.chat.chat_completion import Choice
+from openai.types.completion_usage import CompletionUsage
+from openai.types.chat.chat_completion_message import FunctionCall
+from openai.types.completion import Completion
+from openai.types.chat.chat_completion_chunk import Choice as ChunkChoice
+from openai.types.chat.chat_completion_chunk import ChoiceDelta
+from openai.types.completion_choice import CompletionChoice, Logprobs
+from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 from loguru import logger
 from openai.types.chat import ChatCompletionMessageParam
 from transformers import PreTrainedTokenizer
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.sampling_params import SamplingParams
 
+from api.utils.compat import model_parse
 from api.adapter import get_prompt_adapter
 from api.generation import build_qwen_chat_input
+from api.utils.request import create_error_response
+from api.utils.constants import ErrorCode
+
+server_error_msg = (
+    "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
+)
 
 
 class VllmEngine:
@@ -57,7 +82,7 @@ class VllmEngine:
         functions: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
         enable_thinking: Optional[bool] = False
-    ) -> Union[str, List[int]]:
+    ) -> str:
         """
         Applies a chat template to the given messages and returns the processed output.
 
@@ -112,7 +137,7 @@ class VllmEngine:
         input_ids = token_ids or self.tokenizer(prompt).input_ids
         return input_ids[-max_input_tokens:]
 
-    def generate(self, params: Dict[str, Any], request_id: str) -> AsyncIterator:
+    async def _generate(self, params: Dict[str, Any], request_id: str) -> AsyncIterator[dict]:
         """
         Generates text based on the given parameters and request ID.
 
@@ -125,8 +150,9 @@ class VllmEngine:
         """
         max_tokens = params.get("max_tokens", 256)
         prompt_or_messages = params.get("prompt_or_messages")
+        prompt = ""
         if isinstance(prompt_or_messages, list):
-            prompt_or_messages = self.apply_chat_template(
+            prompt: str = self.apply_chat_template(
                 prompt_or_messages,
                 max_tokens,
                 functions=params.get("functions"),
@@ -134,40 +160,71 @@ class VllmEngine:
                 enable_thinking=params.get("enable_thinking")
             )
 
-        if isinstance(prompt_or_messages, list):
-            prompt, token_ids = None, prompt_or_messages
-        else:
-            prompt, token_ids = prompt_or_messages, None
-
-        token_ids = self.convert_to_inputs(prompt, token_ids, max_tokens=max_tokens)
+        token_ids = self.convert_to_inputs(prompt, max_tokens=max_tokens)
         try:
             sampling_params = SamplingParams(
                 n=params.get("n", 1),
                 presence_penalty=params.get("presence_penalty", 0.),
                 frequency_penalty=params.get("frequency_penalty", 0.),
+                repetition_penalty=params.get("repetition_penalty", 1.03),
                 temperature=params.get("temperature", 0.9),
                 top_p=params.get("top_p", 0.8),
+                top_k=params.get("top_k", 20),
                 stop=params.get("stop", []),
                 stop_token_ids=params.get("stop_token_ids", []),
                 max_tokens=params.get("max_tokens", 256),
-                repetition_penalty=params.get("repetition_penalty", 1.03),
                 min_p=params.get("min_p", 0.0),
                 best_of=params.get("best_of", 1),
+                logit_bias=params.get("logit_bias", None),
+                logprobs=params.get("logprobs", None),
+                seed=params.get("seed", None),
                 ignore_eos=params.get("ignore_eos", False),
                 use_beam_search=params.get("use_beam_search", False),
                 skip_special_tokens=params.get("skip_special_tokens", True),
                 spaces_between_special_tokens=params.get("spaces_between_special_tokens", True),
             )
-            result_generator = self.model.generate(
-                prompt_or_messages if isinstance(prompt_or_messages, str) else None,
+            results_generator = self.model.generate(
+                prompt_or_messages,
                 sampling_params,
-                request_id,
-                token_ids,
+                request_id
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
+        
+        input_echo_len = len(token_ids)
+        i = 0
 
-        return result_generator
+        try:
+            async for request_output in results_generator:
+                prompt = request_output.prompt
+                assert prompt is not None
+                text_outputs = [
+                    prompt + output.text for output in request_output.outputs
+                ]
+                i += 1
+                yield {
+                    "text": text_outputs,
+                    "usage": {
+                        "prompt_tokens": input_echo_len,
+                        "completion_tokens": i,
+                        "total_tokens": input_echo_len + i,
+                    },
+                    "finish_reason": None,
+                    "error_code": 0,
+                }
+
+        except torch.cuda.OutOfMemoryError as e:
+            yield {
+                "text": f"{server_error_msg}\n\n({e})",
+                "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
+            }
+
+        except (ValueError, RuntimeError) as e:
+            traceback.print_exc()
+            yield {
+                "text": f"{server_error_msg}\n\n({e})",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
 
     @property
     def stop(self):
@@ -178,3 +235,116 @@ class VllmEngine:
             The stop property of the prompt adapter, or None if it does not exist.
         """
         return self.prompt_adapter.stop if hasattr(self.prompt_adapter, "stop") else None
+    
+    async def _create_chat_completion(self, params: Dict[str, Any]) -> Union[ChatCompletion, JSONResponse]:
+        """
+        Creates a chat completion based on the given parameters.
+
+        Args:
+            params (Dict[str, Any]): The parameters for generating the chat completion.
+
+        Returns:
+            ChatCompletion: The generated chat completion.
+        """
+        last_output = None
+        chat_id = uuid.uuid4()
+        created = int(time.time())
+        results_generator = self._generate(params, request_id=chat_id.hex)
+
+        last_output = None
+        try:
+            async for request_output in results_generator:
+                last_output = request_output
+        except asyncio.CancelledError:
+            return create_error_response(code=499, message="Cancelled")
+        
+        assert isinstance(last_output, dict)
+        if last_output["error_code"] != 0:
+            return create_error_response(last_output["error_code"], last_output["text"])
+
+        
+        message = ChatCompletionMessage(
+            role="assistant",
+            content=last_output["text"].strip(),
+        )
+
+        choice = Choice(
+            index=0,
+            message=message,
+            finish_reason=last_output["finish_reason"],
+        )
+
+        usage = model_parse(CompletionUsage, last_output["usage"])
+        return ChatCompletion(
+            id=f"chat{chat_id}",
+            choices=[choice],
+            created=created,
+            model=self.model_name,
+            object="chat.completion",
+            usage=usage,
+        )
+    
+    async def _create_chat_completion_stream(self, params: Dict[str, Any]) -> AsyncIterator:
+        """
+        Creates a chat completion stream.
+
+        Args:
+            params (Dict[str, Any]): The parameters for generating the chat completion.
+
+        Yields:
+            Dict[str, Any]: The output of the chat completion stream.
+        """
+        
+        created = int(time.time())
+        chat_id = uuid.uuid4()
+        has_function_call = False
+        async for output in self._generate(params, request_id=chat_id.hex):
+            if output["error_code"] != 0:
+                yield output
+                return
+
+            finish_reason = output["finish_reason"]
+            if len(output["delta"]) == 0 and finish_reason != "function_call":
+                continue
+
+            delta = ChoiceDelta(content=output["delta"])
+
+            choice = ChunkChoice(
+                index=0,
+                delta=delta,
+                finish_reason=finish_reason
+            )
+            yield ChatCompletionChunk(
+                id=f"chat{chat_id}",
+                choices=[choice],
+                created=created,
+                model=self.model_name,
+                object="chat.completion.chunk",
+            )
+
+        if not has_function_call:
+            choice = ChunkChoice(
+                index=0,
+                delta=ChoiceDelta(),
+                finish_reason="stop"
+            )
+            yield ChatCompletionChunk(
+                id=f"chat{chat_id}",
+                choices=[choice],
+                created=created,
+                model=self.model_name,
+                object="chat.completion.chunk",
+            )
+
+    async def create_chat_completion(
+        self,
+        params: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> Union[AsyncIterator, ChatCompletion]:
+        params = params or {}
+        params |= kwargs
+        return (
+            self._create_chat_completion_stream(params)
+            if params.get("stream", False)
+            else self._create_chat_completion(params)
+        )

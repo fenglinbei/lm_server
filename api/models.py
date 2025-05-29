@@ -82,8 +82,7 @@ def create_generate_model():
 def create_vllm_engine():
     """ get vllm generate engine for chat or completion. """
     try:
-        from vllm import AsyncEngineArgs
-        from vllm import AsyncLLMEngine
+        from vllm import AsyncEngineArgs, AsyncLLMEngine
         from vllm.transformers_utils.tokenizer import get_tokenizer
         from api.core.vllm_engine import VllmEngine
 
@@ -106,7 +105,7 @@ def create_vllm_engine():
 
     # A separate tokenizer to map token IDs to strings.
     tokenizer = get_tokenizer(
-        engine_args.tokenizer,
+        SETTINGS.model_path,
         tokenizer_mode=engine_args.tokenizer_mode,
         trust_remote_code=True,
     )
