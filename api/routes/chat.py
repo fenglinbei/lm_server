@@ -45,6 +45,8 @@ async def create_chat_completion(
 
     iterator_or_completion = await run_in_threadpool(engine.create_chat_completion, params)
 
+    logger.debug(f"iterator_or_completion: {type(iterator_or_completion)} {iterator_or_completion}")
+
     if isinstance(iterator_or_completion, Iterator):
         # It's easier to ask for forgiveness than permission
         first_response = await run_in_threadpool(next, iterator_or_completion)
