@@ -2,6 +2,7 @@ from functools import partial
 from typing import Iterator
 
 import anyio
+from inspect import isgenerator, isasyncgen
 from fastapi import APIRouter, Depends, Request, HTTPException
 from loguru import logger
 from sse_starlette import EventSourceResponse
@@ -43,29 +44,47 @@ async def create_chat_completion(
     )
     logger.debug(f"==== request ====\n{params}")
 
-    iterator_or_completion = await run_in_threadpool(engine.create_chat_completion, params)
+    iterator_or_completion = await engine.create_chat_completion(params)
 
     logger.debug(f"iterator_or_completion: {type(iterator_or_completion)} {iterator_or_completion}")
 
-    if isinstance(iterator_or_completion, Iterator):
-        # It's easier to ask for forgiveness than permission
-        first_response = await run_in_threadpool(next, iterator_or_completion)
+    if isgenerator(iterator_or_completion) or isasyncgen(iterator_or_completion):
+        # 异步生成器需要特殊处理
+        if isasyncgen(iterator_or_completion):
+            async def async_iterator():
+                async for chunk in iterator_or_completion:
+                    yield chunk
+                    
+            send_chan, recv_chan = anyio.create_memory_object_stream(10)
+            return EventSourceResponse(
+                recv_chan,
+                data_sender_callable=partial(
+                    get_event_publisher,
+                    request=raw_request,
+                    inner_send_chan=send_chan,
+                    iterator=async_iterator(),  # 使用异步迭代器
+                ),
+            )
 
-        # If no exception was raised from first_response, we can assume that
-        # the iterator is valid, and we can use it to stream the response.
-        def iterator() -> Iterator:
-            yield first_response
-            yield from iterator_or_completion
+        else:
+            # It's easier to ask for forgiveness than permission
+            first_response = await run_in_threadpool(next, iterator_or_completion)
 
-        send_chan, recv_chan = anyio.create_memory_object_stream(10)
-        return EventSourceResponse(
-            recv_chan,
-            data_sender_callable=partial(
-                get_event_publisher,
-                request=raw_request,
-                inner_send_chan=send_chan,
-                iterator=iterator(),
-            ),
-        )
+            # If no exception was raised from first_response, we can assume that
+            # the iterator is valid, and we can use it to stream the response.
+            def iterator() -> Iterator:
+                yield first_response
+                yield from iterator_or_completion
+
+            send_chan, recv_chan = anyio.create_memory_object_stream(10)
+            return EventSourceResponse(
+                recv_chan,
+                data_sender_callable=partial(
+                    get_event_publisher,
+                    request=raw_request,
+                    inner_send_chan=send_chan,
+                    iterator=iterator(),
+                ),
+            )
     else:
         return iterator_or_completion
