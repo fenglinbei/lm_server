@@ -1,5 +1,6 @@
 import uuid
 import time
+import json
 import torch
 import asyncio
 import traceback
@@ -114,7 +115,7 @@ class VllmEngine:
                     add_generation_prompt=True,
                     enable_thinking=enable_thinking,  # Setting enable_thinking=False disables thinking mode
                     )
-            return self.tokenizer(prompt).input_ids
+            return prompt
         elif "qwen" in self.model_name:
             return build_qwen_chat_input(
                 self.tokenizer,
@@ -161,6 +162,7 @@ class VllmEngine:
             )
 
         token_ids = self.convert_to_inputs(prompt, max_tokens=max_tokens)
+        finish_reason = "stop"
         try:
             sampling_params = SamplingParams(
                 n=params.get("n", 1),
@@ -179,12 +181,13 @@ class VllmEngine:
                 logprobs=params.get("logprobs", None),
                 seed=params.get("seed", None),
                 ignore_eos=params.get("ignore_eos", False),
-                use_beam_search=params.get("use_beam_search", False),
                 skip_special_tokens=params.get("skip_special_tokens", True),
                 spaces_between_special_tokens=params.get("spaces_between_special_tokens", True),
             )
+
+            logger.debug(sampling_params)
             results_generator = self.model.generate(
-                prompt_or_messages,
+                prompt,
                 sampling_params,
                 request_id
             )
@@ -196,20 +199,17 @@ class VllmEngine:
 
         try:
             async for request_output in results_generator:
-                prompt = request_output.prompt
-                assert prompt is not None
-                text_outputs = [
-                    prompt + output.text for output in request_output.outputs
-                ]
                 i += 1
+                if i == max_tokens:
+                    finish_reason = "length"
                 yield {
-                    "text": text_outputs,
+                    "text": request_output.outputs[0].text,
                     "usage": {
                         "prompt_tokens": input_echo_len,
                         "completion_tokens": i,
                         "total_tokens": input_echo_len + i,
                     },
-                    "finish_reason": None,
+                    "finish_reason": finish_reason,
                     "error_code": 0,
                 }
 
@@ -255,15 +255,16 @@ class VllmEngine:
         try:
             async for request_output in results_generator:
                 last_output = request_output
-                logger.debug(f"last output: {last_output}")
         except asyncio.CancelledError:
             return create_error_response(code=499, message="Cancelled")
         
         assert isinstance(last_output, dict)
         if last_output["error_code"] != 0:
             return create_error_response(last_output["error_code"], last_output["text"])
-
         
+        
+        
+
         message = ChatCompletionMessage(
             role="assistant",
             content=last_output["text"].strip(),
