@@ -21,25 +21,28 @@ if RERANK_MODEL is not None:
 
 
 if GENERATE_ENGINE is not None:
-    if SETTINGS.engine == "vllm":
-        from api.vllm_routes import chat_router as chat_router
-        from api.vllm_routes import completion_router as completion_router
+    # if SETTINGS.engine == "vllm":
+    #     from api.vllm_routes import chat_router as chat_router
+    #     from api.vllm_routes import completion_router as completion_router
 
-    elif SETTINGS.engine == "llama.cpp":
-        from api.llama_cpp_routes import chat_router as chat_router
-        from api.llama_cpp_routes import completion_router as completion_router
+    # elif SETTINGS.engine == "llama.cpp":
+    #     from api.llama_cpp_routes import chat_router as chat_router
+    #     from api.llama_cpp_routes import completion_router as completion_router
 
-    elif SETTINGS.engine == "chatglm.cpp":
-        from api.chatglm_cpp_routes import chat_router as chat_router
-        # from api.chatglm_cpp_routes import completion_router as completion_router
+    # elif SETTINGS.engine == "chatglm.cpp":
+    #     from api.chatglm_cpp_routes import chat_router as chat_router
+    #     # from api.chatglm_cpp_routes import completion_router as completion_router
 
-    elif SETTINGS.engine == "tgi":
-        from api.tgi_routes import chat_router as chat_router
-        from api.tgi_routes.completion import completion_router as completion_router
+    # elif SETTINGS.engine == "tgi":
+    #     from api.tgi_routes import chat_router as chat_router
+    #     from api.tgi_routes.completion import completion_router as completion_router
 
-    else:
-        from api.routes.chat import chat_router as chat_router
-        from api.routes.completion import completion_router as completion_router
+    # else:
+    #     from api.routes.chat import chat_router as chat_router
+    #     from api.routes.completion import completion_router as completion_router
+
+    from api.routes.chat import chat_router as chat_router
+    from api.routes.completion import completion_router as completion_router
 
     app.include_router(chat_router, prefix=prefix, tags=["Chat"])
     # app.include_router(completion_router, prefix=prefix, tags=["Completion"])
