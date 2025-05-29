@@ -158,7 +158,7 @@ class ChatCompletionCreateParams(BaseModel):
     We generally recommend altering this or `temperature` but not both.
     """
 
-    top_k: Optional[float] = 20
+    top_k: Optional[int] = 20
     """
     生成过程中采样候选集的大小。
     例如,取值为50时,仅将单次生成中得分最高的50个Token组成随机采样的候选集。

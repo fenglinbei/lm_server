@@ -2,10 +2,11 @@ from functools import partial
 from typing import Iterator
 
 import anyio
+import asyncio
+from inspect import isgenerator, isasyncgen, iscoroutine
 from fastapi import APIRouter, Depends, Request, HTTPException
 from loguru import logger
 from sse_starlette import EventSourceResponse
-from starlette.concurrency import run_in_threadpool
 
 from api.models import GENERATE_ENGINE
 from api.utils.compat import model_dump
@@ -14,6 +15,7 @@ from api.utils.request import (
     handle_request,
     check_api_key,
     get_event_publisher,
+    create_error_response
 )
 
 chat_router = APIRouter(prefix="/chat")
@@ -43,27 +45,49 @@ async def create_chat_completion(
     )
     logger.debug(f"==== request ====\n{params}")
 
-    iterator_or_completion = await run_in_threadpool(engine.create_chat_completion, params)
+    iterator_or_completion = await engine.create_chat_completion(params)
 
-    if isinstance(iterator_or_completion, Iterator):
-        # It's easier to ask for forgiveness than permission
-        first_response = await run_in_threadpool(next, iterator_or_completion)
+    logger.debug(f"iterator_or_completion: {type(iterator_or_completion)} {iterator_or_completion}")
+    logger.debug(f"{isgenerator(iterator_or_completion)} {isasyncgen(iterator_or_completion)} {iscoroutine(iterator_or_completion)}")
 
-        # If no exception was raised from first_response, we can assume that
-        # the iterator is valid, and we can use it to stream the response.
-        def iterator() -> Iterator:
-            yield first_response
-            yield from iterator_or_completion
-
+    try:
+        if iscoroutine(iterator_or_completion):
+            completion = await iterator_or_completion  # 执行协程
+            logger.debug(completion)
+            return completion
+        elif isasyncgen(iterator_or_completion):
+            async def async_iterator():
+                async for chunk in iterator_or_completion:
+                    yield chunk
+            iterator = async_iterator()
+        elif isgenerator(iterator_or_completion):
+        # 场景3：同步生成器，转换为异步迭代
+            async def sync_iterator_wrapper():
+                loop = asyncio.get_event_loop()
+                while True:
+                    try:
+                        chunk = await loop.run_in_executor(None, next, iterator_or_completion)
+                        yield chunk
+                    except StopIteration:
+                        break
+            iterator = sync_iterator_wrapper()
+        else:
+            return iterator_or_completion
+        
         send_chan, recv_chan = anyio.create_memory_object_stream(10)
+
+        # 返回 EventSourceResponse
         return EventSourceResponse(
             recv_chan,
             data_sender_callable=partial(
                 get_event_publisher,
                 request=raw_request,
                 inner_send_chan=send_chan,
-                iterator=iterator(),
+                iterator=iterator,  # 使用动态生成的迭代器
             ),
         )
-    else:
-        return iterator_or_completion
+    
+    except Exception as err:
+        logger.error(err)
+        logger.exception(err)
+        return create_error_response(500, "Internal Server Error")

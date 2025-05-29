@@ -20,15 +20,7 @@ from api.apapter.react import (
 from api.config import config
 from api.models import VLLM_ENGINE
 from api.utils.protocol import (
-    ChatCompletionRequest,
-    ChatCompletionResponse,
-    ChatCompletionResponseChoice,
-    ChatCompletionResponseStreamChoice,
-    ChatCompletionStreamResponse,
-    ChatMessage,
-    DeltaMessage,
-    UsageInfo,
-    Role,
+    ChatCompletionCreateParams
 )
 from api.vllm_routes.utils import create_error_response, get_gen_prompt, get_model_inputs
 from api.routes.utils import check_requests
@@ -36,13 +28,16 @@ from api.routes.utils import check_requests
 logger = init_logger(__name__)
 chat_router = APIRouter(prefix="/chat")
 
+def get_engine():
+    yield GENERATE_ENGINE
 
-@chat_router.post("/completions",
-                  summary="模型交互接口",
-                  description="模型交互的api接口，使用Qewn-7B-Chat模型。具体接口参数见Schemas",
-                  response_model=ChatCompletionResponse,
-                  response_description="交互处理成功")
-async def create_chat_completion(raw_request: Request):
+
+@chat_router.post("/completions", dependencies=[Depends(check_api_key)])
+async def create_chat_completion(
+    request: ChatCompletionCreateParams,
+    raw_request: Request,
+    engine=Depends(get_engine),
+):
     """Completion API similar to OpenAI's API.
 
     See  https://platform.openai.com/docs/api-reference/chat/create
@@ -52,7 +47,7 @@ async def create_chat_completion(raw_request: Request):
         - function_call (Users should implement this by themselves)
         - logit_bias (to be supported by vLLM engine)
     """
-    request = ChatCompletionRequest(**await raw_request.json())
+    request = ChatCompletionCreateParams(**await raw_request.json())
     logger.info(f"Received chat completion request: {request}")
     
     error_check_ret = check_requests(request)
