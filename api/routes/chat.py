@@ -47,6 +47,7 @@ async def create_chat_completion(
     iterator_or_completion = await engine.create_chat_completion(params)
 
     logger.debug(f"iterator_or_completion: {type(iterator_or_completion)} {iterator_or_completion}")
+    logger.debug(f"{isgenerator(iterator_or_completion)} {isasyncgen(iterator_or_completion)}")
 
     if isgenerator(iterator_or_completion) or isasyncgen(iterator_or_completion):
         # 异步生成器需要特殊处理
