@@ -255,6 +255,7 @@ class VllmEngine:
         try:
             async for request_output in results_generator:
                 last_output = request_output
+                logger.debug(f"last output: {last_output}")
         except asyncio.CancelledError:
             return create_error_response(code=499, message="Cancelled")
         
