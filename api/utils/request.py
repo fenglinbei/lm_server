@@ -90,6 +90,9 @@ async def handle_request(
     
     if not request.temperature:
          request.temperature = 0.9
+    
+    if not request.best_of:
+        request.best_of = request.n
 
     # if not request.frequency_penalty or request.frequency_penalty == 0.0:
     #     request.frequency_penalty = 1.03

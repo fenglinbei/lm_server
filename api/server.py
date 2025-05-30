@@ -1,5 +1,5 @@
 from utils.log import init_logger
-logger = init_logger(level="INFO", show_console=True)
+logger = init_logger(level="DEBUG", show_console=True)
 
 from api.config import SETTINGS
 from api.models import app, EMBEDDED_MODEL, GENERATE_ENGINE, RERANK_MODEL
