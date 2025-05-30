@@ -216,6 +216,8 @@ class VllmEngine:
                     }
                 })
 
+                logger.debug(f"{type(output.finish_reason)} {output.finish_reason}")
+
                 yield results
 
 
