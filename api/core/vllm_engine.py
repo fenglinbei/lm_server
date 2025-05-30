@@ -207,7 +207,7 @@ class VllmEngine:
                     results.append({
                     "index": output.index,
                     "text": output.text,
-                    "finish_reason": str(output.finish_reason),
+                    "finish_reason": output.finish_reason,
                     "error_code": 0,
                     "usage": {
                         "prompt_tokens": prompt_tokens,
