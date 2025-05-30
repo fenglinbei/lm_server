@@ -202,6 +202,7 @@ class VllmEngine:
                     prompt_tokens = len(request_output.prompt_token_ids)
                 i += 1
 
+                results = []
                 for output in request_output.outputs:
                     completion_tokens = len(output.token_ids)
                     results.append({
