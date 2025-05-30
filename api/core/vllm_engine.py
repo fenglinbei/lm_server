@@ -284,7 +284,7 @@ class VllmEngine:
             choice = Choice(
                 index=output["index"],
                 message=message,
-                finish_reason=output["finish_reason"],
+                finish_reason=output["finish_reason"] if output["finish_reason"] else "stop",
             )
 
             choices.append(choice)
