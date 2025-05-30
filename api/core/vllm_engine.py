@@ -173,7 +173,7 @@ class VllmEngine:
                 stop_token_ids=params.get("stop_token_ids", []),
                 max_tokens=params.get("max_tokens", 256),
                 min_p=params.get("min_p", 0.0),
-                best_of=params.get("best_of", 1),
+                # best_of=params.get("best_of", 1),
                 logit_bias=params.get("logit_bias", None),
                 logprobs=params.get("logprobs", None),
                 seed=params.get("seed", None),
