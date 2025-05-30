@@ -198,7 +198,7 @@ class ChatCompletionCreateParams(BaseModel):
     """Watermarking with [A Watermark for Large Language Models](https://arxiv.org / abs / 2301.10226)
     """
 
-    best_of: Optional[int] = 1
+    best_of: Optional[int] = None
 
     ignore_eos: Optional[bool] = False
 

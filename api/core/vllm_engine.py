@@ -138,7 +138,7 @@ class VllmEngine:
         input_ids = token_ids or self.tokenizer(prompt).input_ids
         return input_ids[-max_input_tokens:]
 
-    async def _generate(self, params: Dict[str, Any], request_id: str) -> AsyncIterator[dict]:
+    async def _generate(self, params: Dict[str, Any], request_id: str) -> AsyncIterator[Union[list[dict], dict]]:
         """
         Generates text based on the given parameters and request ID.
 
@@ -160,9 +160,6 @@ class VllmEngine:
                 tools=params.get("tools"),
                 enable_thinking=params.get("enable_thinking")
             )
-
-        token_ids = self.convert_to_inputs(prompt, max_tokens=max_tokens)
-        finish_reason = "stop"
         try:
             sampling_params = SamplingParams(
                 n=params.get("n", 1),
@@ -193,25 +190,34 @@ class VllmEngine:
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
-        
-        input_echo_len = len(token_ids)
-        i = 0
 
+        i = 0
+        prompt_tokens = 0
+        completion_tokens = 0
+        results = []
         try:
             async for request_output in results_generator:
+                
+                if i == 0:
+                    prompt_tokens = len(request_output.prompt_token_ids)
                 i += 1
-                if i == max_tokens:
-                    finish_reason = "length"
-                yield {
-                    "text": request_output.outputs[0].text,
-                    "usage": {
-                        "prompt_tokens": input_echo_len,
-                        "completion_tokens": i,
-                        "total_tokens": input_echo_len + i,
-                    },
-                    "finish_reason": finish_reason,
+
+                for output in request_output.outputs:
+                    completion_tokens = len(output.token_ids)
+                    results.append({
+                    "index": output.index,
+                    "text": output.text,
+                    "finish_reason": output.finish_reason,
                     "error_code": 0,
-                }
+                    "usage": {
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens": prompt_tokens + completion_tokens,
+                    }
+                })
+
+                yield results
+
 
         except torch.cuda.OutOfMemoryError as e:
             yield {
@@ -246,44 +252,55 @@ class VllmEngine:
         Returns:
             ChatCompletion: The generated chat completion.
         """
-        last_output = None
+
         chat_id = uuid.uuid4()
         created = int(time.time())
         results_generator = self._generate(params, request_id=chat_id.hex)
 
-        last_output = None
+        last_outputs = []
         try:
             async for request_output in results_generator:
-                last_output = request_output
+                last_outputs = request_output
         except asyncio.CancelledError:
             return create_error_response(code=499, message="Cancelled")
         
-        assert isinstance(last_output, dict)
-        if last_output["error_code"] != 0:
-            return create_error_response(last_output["error_code"], last_output["text"])
+        if isinstance(last_outputs, dict) and  last_outputs["error_code"] != 0:
+            return create_error_response(last_outputs["error_code"], last_outputs["text"])
         
+        choices = []
         
+        prompt_tokens = last_outputs[0]["usage"]["prompt_tokens"]
+        completion_tokens = 0
+
+        for output in last_outputs:
+
+            message = ChatCompletionMessage(
+                role="assistant",
+                content=output["text"].strip(),
+            )
+
+            choice = Choice(
+                index=output["index"],
+                message=message,
+                finish_reason=output["finish_reason"],
+            )
+
+            choices.append(choice)
+            completion_tokens += output["usage"]["completion_tokens"]
         
+        usage = model_parse(CompletionUsage, {
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens": prompt_tokens + completion_tokens,
+                    })
 
-        message = ChatCompletionMessage(
-            role="assistant",
-            content=last_output["text"].strip(),
-        )
-
-        choice = Choice(
-            index=0,
-            message=message,
-            finish_reason=last_output["finish_reason"],
-        )
-
-        usage = model_parse(CompletionUsage, last_output["usage"])
         return ChatCompletion(
             id=f"chat{chat_id}",
-            choices=[choice],
+            choices=choices,
             created=created,
             model=self.model_name,
             object="chat.completion",
-            usage=usage,
+            usage=usage, # type: ignore
         )
     
     async def _create_chat_completion_stream(self, params: Dict[str, Any]) -> AsyncIterator:
