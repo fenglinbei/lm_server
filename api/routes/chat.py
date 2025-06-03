@@ -45,7 +45,7 @@ async def create_chat_completion(
     )
     logger.debug(f"==== request ====\n{params}")
 
-    iterator_or_completion = await engine.create_chat_completion(params)
+    iterator_or_completion = engine.create_chat_completion(params)
 
     try:
         if iscoroutine(iterator_or_completion):
