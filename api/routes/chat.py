@@ -54,6 +54,7 @@ async def create_chat_completion(
             completion = await iterator_or_completion  # 执行协程
             import time
             while iscoroutine(completion):
+                completion = await completion
                 logger.debug(completion)
                 time.sleep(1)
             return completion
