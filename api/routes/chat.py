@@ -55,8 +55,6 @@ async def create_chat_completion(
             import time
             while iscoroutine(completion):
                 completion = await completion
-                logger.debug(completion)
-                time.sleep(1)
             return completion
         elif isasyncgen(iterator_or_completion):
             async def async_iterator():
