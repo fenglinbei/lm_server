@@ -47,6 +47,8 @@ async def create_chat_completion(
 
     iterator_or_completion = engine.create_chat_completion(params)
 
+    logger.debug(type(iterator_or_completion))
+
     try:
         if iscoroutine(iterator_or_completion):
             completion = await iterator_or_completion  # 执行协程
