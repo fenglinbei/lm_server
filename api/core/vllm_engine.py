@@ -259,6 +259,7 @@ class VllmEngine:
         results_generator = self._generate(params, request_id=chat_id.hex)
 
         last_outputs = []
+        logger.debug(params)
         try:
             async for request_output in results_generator:
                 last_outputs = request_output
